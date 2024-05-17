@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 import torch
@@ -8,6 +9,9 @@ from ....utils import is_flash_attention_available
 
 if is_flash_attention_available():
     from flash_attn.flash_attn_interface import flash_attn_varlen_func
+
+
+_USE_PYTORCH_NATIVE_FLASH_KERNEL: bool = bool(os.getenv("PYTORCH_NATIVE_FLASH_KERNEL", False))
 
 
 class _FlashAttentionVarlenTorch(torch.autograd.Function):
@@ -47,14 +51,15 @@ class _FlashAttentionVarlenTorch(torch.autograd.Function):
             cu_seqlens_k,
             max_seqlen_q,
             max_seqlen_k,
-            dropout_p,
-            causal,
-            softmax_scale,
             attention_output,
             log_sum_exp,
             philox_seed,
             philox_offset,
         )
+
+        ctx.dropout_p = dropout_p
+        ctx.causal = causal
+        ctx.softmax_scale = softmax_scale
 
         return attention_output
 
@@ -110,23 +115,23 @@ def flash_attention(
     softmax_scale: float,
     causal: bool,
 ) -> torch.Tensor:
-    # if is_flash_attention_available():
-    #     attention_output = flash_attn_varlen_func(
-    #         query,
-    #         key,
-    #         value,
-    #         cu_seqlens_q=cu_seqlens_q,
-    #         cu_seqlens_k=cu_seqlens_k,
-    #         max_seqlen_q=max_seqlen_q,
-    #         max_seqlen_k=max_seqlen_k,
-    #         dropout_p=dropout_p,
-    #         softmax_scale=softmax_scale,
-    #         causal=causal,
-    #     )
-    # else:
-    attention_output = _FlashAttentionVarlenTorch.apply(
-        query, key, value, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, dropout_p, softmax_scale, causal
-    )
+    if _USE_PYTORCH_NATIVE_FLASH_KERNEL:
+        attention_output = _FlashAttentionVarlenTorch.apply(
+            query, key, value, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, dropout_p, softmax_scale, causal
+        )
+    else:
+        attention_output = flash_attn_varlen_func(
+            query,
+            key,
+            value,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=causal,
+        )
 
     return attention_output
 
