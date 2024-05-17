@@ -84,21 +84,21 @@ class _FlashAttentionVarlenTorch(torch.autograd.Function):
         max_seqlen_k = ctx.max_seqlen_k
 
         query_grad, key_grad, value_grad = torch.ops.aten._flash_attention_backward(
-            grad_output,
-            query,
-            key,
-            value,
-            attention_output,
-            log_sum_exp,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            dropout_p,
-            causal,
-            philox_seed,
-            philox_offset,
-            softmax_scale,
+            grad_out=grad_output,
+            query=query,
+            key=key,
+            value=value,
+            out=attention_output,
+            logsumexp=log_sum_exp,
+            cum_seq_q=cu_seqlens_q,
+            cum_seq_k=cu_seqlens_k,
+            max_q=max_seqlen_q,
+            max_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            is_causal=causal,
+            philox_seed=philox_seed,
+            philox_offset=philox_offset,
+            scale=softmax_scale,
         )
 
         return query_grad, key_grad, value_grad
