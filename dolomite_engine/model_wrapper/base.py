@@ -16,7 +16,7 @@ from ..enums import (
 )
 from ..hf_models import is_custom_model
 from ..hf_models.modeling_utils import is_glu
-from ..utils import get_global_rank, log_rank_0, register_profiler, register_timer, string_to_torch_dtype
+from ..utils import ProcessGroupManager, log_rank_0, register_profiler, register_timer, string_to_torch_dtype
 
 
 class ModelWrapper(torch.nn.Module):
@@ -255,7 +255,7 @@ class ModelWrapper(torch.nn.Module):
                         with torch.device("meta"):
                             self.model = _get_model()
                     else:
-                        if get_global_rank() == 0:
+                        if ProcessGroupManager.get_global_rank() == 0:
                             self.model = (
                                 _get_model() if self.initialize_on_cpu else _get_model(device_map=self.input_device)
                             )

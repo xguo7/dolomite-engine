@@ -20,7 +20,7 @@ from .enums import DistributedBackend, Mode, TuningMethod
 from .model_wrapper import ModelWrapper, get_model
 from .utils import (
     ExperimentsTracker,
-    get_global_rank,
+    ProcessGroupManager,
     load_yaml,
     log_rank_0,
     register_timer,
@@ -315,11 +315,11 @@ def _get_lr_scheduler_path(path: str) -> str:
 
 
 def _get_dataloader_path(path: str) -> str:
-    return os.path.join(path, "dataloader", f"dataloader-{get_global_rank()}.pt")
+    return os.path.join(path, "dataloader", f"dataloader-{ProcessGroupManager.get_global_rank()}.pt")
 
 
 def _get_rng_state_path(path: str) -> str:
-    return os.path.join(path, "rng_state", f"rng_state-{get_global_rank()}.pt")
+    return os.path.join(path, "rng_state", f"rng_state-{ProcessGroupManager.get_global_rank()}.pt")
 
 
 def _get_latest_checkpointed_iterations_path(path: str) -> str:

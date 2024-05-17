@@ -6,7 +6,7 @@ from transformers import AutoTokenizer
 
 from ...arguments import TrainingArgs
 from ...defaults import INPUT_FORMAT, OUTPUT_FORMAT
-from ...utils import get_global_rank, get_world_size, log_rank_0
+from ...utils import ProcessGroupManager, log_rank_0
 from .blended_megatron_dataset_builder import BlendedMegatronDatasetBuilder
 from .blended_megatron_dataset_config import GPTDatasetConfig
 from .gpt_dataset import GPTDataset
@@ -149,15 +149,17 @@ def _get_train_val_test_samples(
     eval_interval: int,
     eval_steps: int,
 ) -> Tuple[int]:
-    train_samples = num_training_steps * micro_batch_size * gradient_accumulation_steps * get_world_size()
+    train_samples = (
+        num_training_steps * micro_batch_size * gradient_accumulation_steps * ProcessGroupManager.get_world_size()
+    )
     val_samples = (
         (num_training_steps // eval_interval + 1)
         * eval_steps
         * micro_batch_size
         * gradient_accumulation_steps
-        * get_world_size()
+        * ProcessGroupManager.get_world_size()
     )
-    test_samples = eval_steps * micro_batch_size * gradient_accumulation_steps * get_world_size()
+    test_samples = eval_steps * micro_batch_size * gradient_accumulation_steps * ProcessGroupManager.get_world_size()
 
     return train_samples, val_samples, test_samples
 
@@ -169,9 +171,9 @@ class MegatronPretrainingSampler:
         self.total_samples = total_samples
         self.consumed_samples = consumed_samples
         self.micro_batch_size = micro_batch_size
-        self.micro_batch_times_data_parallel_size = self.micro_batch_size * get_world_size()
+        self.micro_batch_times_data_parallel_size = self.micro_batch_size * ProcessGroupManager.get_world_size()
         self.drop_last = drop_last
-        self.data_parallel_rank = get_global_rank()
+        self.data_parallel_rank = ProcessGroupManager.get_global_rank()
 
         # Sanity checks.
         assert self.total_samples > 0, "no sample to consume: {}".format(self.total_samples)
