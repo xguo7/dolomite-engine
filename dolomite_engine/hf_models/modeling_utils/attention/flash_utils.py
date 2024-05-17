@@ -117,9 +117,27 @@ def flash_attention(
     causal: bool,
 ) -> torch.Tensor:
     if _USE_PYTORCH_NATIVE_FLASH_KERNEL == 1:
-        attention_output = _FlashAttentionVarlenTorch.apply(
-            query, key, value, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, dropout_p, softmax_scale, causal
-        )
+        if cu_seqlens_q is None:
+            assert cu_seqlens_k is None
+            assert max_seqlen_q is None
+            assert max_seqlen_k is None
+
+            attention_output = F.scaled_dot_product_attention(
+                query, key, value, dropout_p=dropout_p, is_causal=causal, scale=softmax_scale
+            )
+        else:
+            attention_output = _FlashAttentionVarlenTorch.apply(
+                query,
+                key,
+                value,
+                cu_seqlens_q,
+                cu_seqlens_k,
+                max_seqlen_q,
+                max_seqlen_k,
+                dropout_p,
+                softmax_scale,
+                causal,
+            )
     else:
         if cu_seqlens_q is None:
             assert cu_seqlens_k is None
