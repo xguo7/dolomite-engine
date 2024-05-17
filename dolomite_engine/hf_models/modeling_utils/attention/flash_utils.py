@@ -116,14 +116,26 @@ def flash_attention(
     softmax_scale: float,
     causal: bool,
 ) -> torch.Tensor:
+    if cu_seqlens_q is None:
+        # when attention mask is not specified, tensor is 4D
+        assert query.dim() == 4
+        assert key.dim() == 4
+        assert value.dim() == 4
+
+        assert cu_seqlens_k is None
+        assert max_seqlen_q is None
+        assert max_seqlen_k is None
+
     if _USE_PYTORCH_NATIVE_FLASH_KERNEL == 1:
         if cu_seqlens_q is None:
-            assert cu_seqlens_k is None
-            assert max_seqlen_q is None
-            assert max_seqlen_k is None
+            max_seqlen = query.shape[1]
 
-            attention_output = F.scaled_dot_product_attention(
-                query, key, value, dropout_p=dropout_p, is_causal=causal, scale=softmax_scale
+            query = query.view(-1, *query.shape[1:])
+            key = key.view(-1, *key.shape[1:])
+            value = value.view(-1, *value.shape[1:])
+
+            attention_output = _FlashAttentionVarlenTorch.apply(
+                query, key, value, None, None, max_seqlen, max_seqlen, dropout_p, softmax_scale, causal
             )
         else:
             attention_output = _FlashAttentionVarlenTorch.apply(
@@ -140,10 +152,6 @@ def flash_attention(
             )
     else:
         if cu_seqlens_q is None:
-            assert cu_seqlens_k is None
-            assert max_seqlen_q is None
-            assert max_seqlen_k is None
-
             attention_output = flash_attn_func(
                 query, key, value, dropout_p=dropout_p, softmax_scale=softmax_scale, causal=causal
             )
