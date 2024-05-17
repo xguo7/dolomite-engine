@@ -3,12 +3,12 @@ import torch
 from .....utils import is_flash_attention_available
 from ....enums import PositionEmbeddingType
 from ....modeling_utils import apply_rotary_pos_emb, get_unpad_data
+from ....modeling_utils.attention.utils import flash_attention
 from .base import MultiLayerAttention
 
 
 if is_flash_attention_available():
     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
-    from flash_attn.flash_attn_interface import flash_attn_func, flash_attn_varlen_func
 
 
 class MultiLayerFlashAttention2(MultiLayerAttention):
@@ -39,8 +39,17 @@ class MultiLayerFlashAttention2(MultiLayerAttention):
         batch_size, query_length = query.shape[:2]
 
         if attention_mask is None:
-            attn_output = flash_attn_func(
-                query, key, value, dropout_p=dropout_p, softmax_scale=softmax_scale, causal=self.causal
+            attn_output = flash_attention(
+                query,
+                key,
+                value,
+                cu_seqlens_q=None,
+                cu_seqlens_k=None,
+                max_seqlen_q=None,
+                max_seqlen_k=None,
+                dropout_p=dropout_p,
+                softmax_scale=softmax_scale,
+                causal=self.causal,
             )
         else:
             key_length = key.shape[1]
@@ -74,7 +83,7 @@ class MultiLayerFlashAttention2(MultiLayerAttention):
                 attention_mask = attention_mask[:, -query_length:]
                 query, indices_q, cu_seqlens_q, max_seqlen_q = unpad_input(query, attention_mask)
 
-            attn_output = flash_attn_varlen_func(
+            attn_output = flash_attention(
                 query,
                 key,
                 value,

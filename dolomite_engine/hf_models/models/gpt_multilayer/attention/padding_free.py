@@ -1,13 +1,9 @@
 import torch
 
-from .....utils import is_flash_attention_available
 from ....enums import PositionEmbeddingType
 from ....modeling_utils import apply_rotary_pos_emb
+from ....modeling_utils.attention.utils import flash_attention
 from .base import KeyValueProjection, MultiLayerAttention
-
-
-if is_flash_attention_available():
-    from flash_attn.flash_attn_interface import flash_attn_varlen_func
 
 
 class MultiLayerPaddingFreeAttention(MultiLayerAttention):
@@ -32,7 +28,7 @@ class MultiLayerPaddingFreeAttention(MultiLayerAttention):
         softmax_scale = self._get_softmax_scale()
         dropout_p = self.attn_pdrop if self.training else 0
 
-        attn_output = flash_attn_varlen_func(
+        attn_output = flash_attention(
             query,
             key,
             value,
