@@ -1,54 +1,6 @@
-import os
 from typing import Callable
 
-import torch.distributed as dist
-
-
-_WORLD_SIZE: int = None
-_LOCAL_RANK: int = None
-_GLOBAL_RANK: int = None
-
-
-def get_world_size() -> int:
-    """number of GPUs
-
-    Returns:
-        int: number of GPUs
-    """
-
-    global _WORLD_SIZE
-
-    if _WORLD_SIZE is None:
-        _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
-    return _WORLD_SIZE
-
-
-def get_local_rank() -> int:
-    """GPU rank on current node
-
-    Returns:
-        int: GPU rank on current node
-    """
-
-    global _LOCAL_RANK
-
-    if _LOCAL_RANK is None:
-        _LOCAL_RANK = int(os.getenv("LOCAL_RANK", 0))
-    return _LOCAL_RANK
-
-
-def get_global_rank() -> int:
-    """GPU global rank across all nodes
-
-    Returns:
-        int: GPU global rank across all nodes
-    """
-
-    global _GLOBAL_RANK
-
-    if _GLOBAL_RANK is None:
-        _GLOBAL_RANK = int(os.getenv("RANK", 0))
-    return _GLOBAL_RANK
+from .parallel import ProcessGroupManager
 
 
 def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable:
@@ -67,17 +19,19 @@ def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable
     def func_rank_n(*args, **kwargs):
         output = func(*args, **kwargs)
         if barrier:
-            dist.barrier()
+            ProcessGroupManager.barrier()
         return output
 
     # a dummy method that doesn't do anything
     def func_rank_other(*args, **kwargs):
         if barrier:
-            dist.barrier()
+            ProcessGroupManager.barrier()
 
-    if get_global_rank() == rank:
+    global_rank = ProcessGroupManager.get_global_rank()
+
+    if global_rank == rank:
         return func_rank_n
-    elif get_global_rank() == None:
+    elif global_rank is None:
         # distributed is not initialized
         return func
     else:

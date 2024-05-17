@@ -14,7 +14,7 @@ from .packages import (
 )
 from .parallel import ProcessGroupManager
 from .pydantic import BaseArgs
-from .ranks import get_global_rank, get_local_rank, get_world_size, run_rank_n
+from .ranks import run_rank_n
 from .safetensors import SafeTensorsWeightsManager
 from .tracking import ExperimentsTracker, ProgressBar, RunningMean
 from .wrapper import get_module_class_from_name
@@ -24,8 +24,7 @@ from .yaml import load_yaml
 def init_distributed() -> None:
     """intialize distributed"""
 
-    dist.init_process_group("nccl", rank=get_global_rank(), world_size=get_world_size())
-    torch.cuda.set_device(get_local_rank())
+    ProcessGroupManager()
 
 
 def setup_tf32(use_tf32: bool = True) -> None:
