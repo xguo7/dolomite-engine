@@ -4,6 +4,7 @@ from functools import partial
 from typing import Tuple
 
 import torch
+import torch.nn as nn
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision, ShardingStrategy
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
@@ -134,7 +135,7 @@ def wrap_model_for_distributed_training(
         if communication_dtype is not None:
             mixed_precision_policy.reduce_dtype = string_to_torch_dtype(communication_dtype)
 
-        def _param_init(module):
+        def _param_init(module: nn.Module) -> None:
             if args.model_args.model_name is None:
                 module = module.to_empty(device=torch.cuda.current_device())
 
@@ -159,6 +160,7 @@ def wrap_model_for_distributed_training(
             # https://github.com/meta-llama/llama-recipes/blob/492455dc080f6c25f356e283e443be0cce86aaeb/src/llama_recipes/finetuning.py#L191
             sync_module_states=args.model_args.efficient_initialization,
             param_init_fn=_param_init,
+            device_mesh=ProcessGroupManager.get_data_parallel_mesh_for_hsdp(),
         )
 
         if args.distributed_args.gradient_checkpointing_method is not None:

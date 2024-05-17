@@ -2,7 +2,7 @@ import os
 from typing import Callable
 
 import torch
-from torch.distributed import ProcessGroup, barrier, get_process_group_ranks, get_rank, get_world_size
+from torch.distributed import barrier, get_process_group_ranks, get_rank, get_world_size
 from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
 
 
@@ -76,13 +76,11 @@ class ProcessGroupManager:
 
     @staticmethod
     def get_tensor_parallel_rank() -> int:
-        group = ProcessGroupManager.get_tensor_parallel_group()
-        return get_rank(group)
+        return ProcessGroupManager.get_tensor_parallel_mesh().get_rank()
 
     @staticmethod
     def get_tensor_parallel_world_size() -> int:
-        group = ProcessGroupManager.get_tensor_parallel_group()
-        return get_world_size(group)
+        return ProcessGroupManager.get_tensor_parallel_mesh().size()
 
     # data parallel
     @staticmethod
@@ -91,13 +89,11 @@ class ProcessGroupManager:
 
     @staticmethod
     def get_data_parallel_rank() -> int:
-        group = ProcessGroupManager.get_data_parallel_group()
-        return get_rank(group)
+        return ProcessGroupManager.get_data_parallel_mesh().get_rank()
 
     @staticmethod
     def get_data_parallel_world_size() -> int:
-        group = ProcessGroupManager.get_data_parallel_group()
-        return get_world_size(group)
+        return ProcessGroupManager.get_data_parallel_mesh().size()
 
     @staticmethod
     def get_data_parallel_mesh_for_hsdp() -> DeviceMesh:
