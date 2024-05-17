@@ -101,7 +101,7 @@ class _FlashAttentionVarlenTorch(torch.autograd.Function):
             scale=softmax_scale,
         )
 
-        return query_grad, key_grad, value_grad
+        return query_grad, key_grad, value_grad, None, None, None, None, None, None, None
 
 
 def flash_attention(
