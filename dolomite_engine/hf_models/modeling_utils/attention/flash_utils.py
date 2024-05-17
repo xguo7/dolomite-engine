@@ -122,6 +122,10 @@ def flash_attention(
         )
     else:
         if cu_seqlens_q is None:
+            assert cu_seqlens_k is None
+            assert max_seqlen_q is None
+            assert max_seqlen_k is None
+
             attention_output = flash_attn_func(
                 query, key, value, dropout_p=dropout_p, softmax_scale=softmax_scale, causal=causal
             )
