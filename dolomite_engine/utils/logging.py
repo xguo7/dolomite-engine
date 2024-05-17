@@ -1,8 +1,7 @@
 import logging
 from warnings import warn
 
-from .parallel import ProcessGroupManager
-from .ranks import run_rank_n
+from .parallel import ProcessGroupManager, run_rank_n
 
 
 _LOGGER: logging.Logger = None

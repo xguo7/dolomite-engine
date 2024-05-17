@@ -8,7 +8,7 @@ import torch
 from pynvml import nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo, nvmlInit
 
 from .logging import log_rank_0
-from .ranks import run_rank_n
+from .parallel import run_rank_n
 
 
 _DEBUG_CONFIG = "debug.json"

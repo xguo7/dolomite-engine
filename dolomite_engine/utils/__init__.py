@@ -12,9 +12,8 @@ from .packages import (
     is_transformer_engine_available,
     is_triton_available,
 )
-from .parallel import ProcessGroupManager
+from .parallel import ProcessGroupManager, run_rank_n
 from .pydantic import BaseArgs
-from .ranks import run_rank_n
 from .safetensors import SafeTensorsWeightsManager
 from .tracking import ExperimentsTracker, ProgressBar, RunningMean
 from .wrapper import get_module_class_from_name
