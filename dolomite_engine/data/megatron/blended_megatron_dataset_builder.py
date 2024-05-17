@@ -338,9 +338,7 @@ class BlendedMegatronDatasetBuilder(object):
         """
         if dist.is_initialized():
             rank = get_global_rank()
-            caching_allowed = rank == 0 or (
-                rank % torch.cuda.device_count() == 0 and self.config.node_uses_local_storage
-            )
+            caching_allowed = rank == 0 or (torch.cuda.current_device() == 0 and self.config.node_uses_local_storage)
 
             dataset = None
 

@@ -10,7 +10,7 @@ from typing import List
 import numpy
 import torch
 
-from ...utils import get_global_rank, log_rank_0
+from ...utils import log_rank_0
 
 
 class Split(Enum):
@@ -25,7 +25,7 @@ def compile_helpers() -> None:
     try:
         from dolomite_engine.data.megatron import helpers
     except ImportError:
-        if get_global_rank() % torch.cuda.device_count() == 0:
+        if torch.cuda.current_device() == 0:
             command = ["make", "-C", os.path.abspath(os.path.dirname(__file__))]
 
             if subprocess.run(command).returncode != 0:
