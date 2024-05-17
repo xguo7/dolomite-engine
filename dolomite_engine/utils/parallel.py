@@ -2,18 +2,23 @@ import os
 from typing import Callable
 
 import torch
-from torch.distributed import ProcessGroup, barrier, get_rank, get_world_size
+from torch.distributed import ProcessGroup, barrier, get_process_group_ranks, get_rank, get_world_size
 from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
 
+
+_DEVICE_MESH: DeviceMesh = None
 
 _LOCAL_RANK: int = None
 _GLOBAL_RANK: int = None
 _WORLD_SIZE: int = None
-_DEVICE_MESH: DeviceMesh = None
+
+_ZERO_HPZ_PARTITION_SIZE: int = None
 
 
 class ProcessGroupManager:
-    def __init__(self, tensor_parallel_size: int = None, data_parallel_size: int = None) -> None:
+    def __init__(
+        self, tensor_parallel_size: int = None, data_parallel_size: int = None, zero_hpz_partition_size: int = None
+    ) -> None:
         assert get_rank() == int(os.getenv("RANK", 0))
 
         local_rank = int(os.getenv("LOCAL_RANK", 0))
@@ -25,13 +30,17 @@ class ProcessGroupManager:
         if data_parallel_size is None:
             data_parallel_size = get_world_size() // tensor_parallel_size
 
-        global _DEVICE_MESH
+        global _DEVICE_MESH, _ZERO_HPZ_PARTITION_SIZE
+
         _DEVICE_MESH = init_device_mesh(
             "cuda",
             (tensor_parallel_size, data_parallel_size),
             mesh_dim_names=("tp", "dp"),
         )
 
+        _ZERO_HPZ_PARTITION_SIZE = zero_hpz_partition_size
+
+    # global
     @staticmethod
     def barrier() -> None:
         barrier()
@@ -60,8 +69,9 @@ class ProcessGroupManager:
             _WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
         return _WORLD_SIZE
 
+    # tensor parallel
     @staticmethod
-    def get_tensor_parallel_group() -> ProcessGroup:
+    def get_tensor_parallel_mesh() -> DeviceMesh:
         return _DEVICE_MESH["tp"]
 
     @staticmethod
@@ -74,8 +84,9 @@ class ProcessGroupManager:
         group = ProcessGroupManager.get_tensor_parallel_group()
         return get_world_size(group)
 
+    # data parallel
     @staticmethod
-    def get_data_parallel_group() -> ProcessGroup:
+    def get_data_parallel_mesh() -> DeviceMesh:
         return _DEVICE_MESH["dp"]
 
     @staticmethod
@@ -87,6 +98,15 @@ class ProcessGroupManager:
     def get_data_parallel_world_size() -> int:
         group = ProcessGroupManager.get_data_parallel_group()
         return get_world_size(group)
+
+    @staticmethod
+    def get_data_parallel_mesh_for_hsdp() -> DeviceMesh:
+        group = _DEVICE_MESH.get_group("dp")
+        ranks = get_process_group_ranks(group)
+        ranks = torch.tensor(ranks).view(
+            (_ZERO_HPZ_PARTITION_SIZE, ProcessGroupManager.get_data_parallel_world_size() // _ZERO_HPZ_PARTITION_SIZE)
+        )
+        return DeviceMesh("cuda", mesh=ranks, mesh_dim_names=("ddp", "zero_dp"))
 
 
 def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable:

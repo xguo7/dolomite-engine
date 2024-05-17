@@ -1,6 +1,6 @@
 import torch
-import torch.distributed as dist
 
+from ..arguments import TrainingArgs
 from .logging import log_rank_0, print_rank_0, set_logger
 from .mixed_precision import normalize_dtype_string, string_to_torch_dtype, torch_dtype_to_string
 from .monitoring import register_profiler, register_timer
@@ -20,10 +20,18 @@ from .wrapper import get_module_class_from_name
 from .yaml import load_yaml
 
 
-def init_distributed() -> None:
-    """intialize distributed"""
+def init_distributed(args: TrainingArgs) -> None:
+    """intialize distributed
 
-    ProcessGroupManager()
+    Args:
+        args (TrainingArgs): training args
+    """
+
+    ProcessGroupManager(
+        tensor_parallel_size=None,
+        data_parallel_size=None,
+        zero_hpz_partition_size=args.distributed_args.zero_hpz_partition_size,
+    )
 
 
 def setup_tf32(use_tf32: bool = True) -> None:
