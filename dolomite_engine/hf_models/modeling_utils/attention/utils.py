@@ -26,17 +26,17 @@ class _FlashAttentionVarlenTorch(torch.autograd.Function):
         causal: bool,
     ) -> torch.Tensor:
         attention_output, log_sum_exp, philox_seed, philox_offset, _ = torch.ops.aten._flash_attention_forward(
-            query,
-            key,
-            value,
-            cu_seqlens_q,
-            cu_seqlens_k,
-            max_seqlen_q,
-            max_seqlen_k,
-            dropout_p,
-            causal,
-            False,
-            softmax_scale,
+            query=query,
+            key=key,
+            value=value,
+            cum_seq_q=cu_seqlens_q,
+            cum_seq_k=cu_seqlens_k,
+            max_q=max_seqlen_q,
+            max_k=max_seqlen_k,
+            dropout_p=dropout_p,
+            is_causal=causal,
+            return_debug_mask=False,
+            scale=softmax_scale,
         )
 
         ctx.save_for_backward(
