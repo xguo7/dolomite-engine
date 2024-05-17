@@ -3,6 +3,133 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 
+from ....utils import is_flash_attention_available
+
+
+if is_flash_attention_available():
+    from flash_attn.flash_attn_interface import flash_attn_varlen_func
+
+
+class _FlashAttentionVarlenTorch(torch.autograd.Function):
+    @staticmethod
+    def forward(
+        ctx,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        cu_seqlens_q: torch.Tensor,
+        cu_seqlens_k: torch.Tensor,
+        max_seqlen_q: torch.Tensor,
+        max_seqlen_k: torch.Tensor,
+        dropout_p: float,
+        softmax_scale: float,
+        causal: bool,
+    ) -> torch.Tensor:
+        attention_output, log_sum_exp, philox_seed, philox_offset, _ = torch.ops.aten._flash_attention_forward(
+            query,
+            key,
+            value,
+            cu_seqlens_q,
+            cu_seqlens_k,
+            max_seqlen_q,
+            max_seqlen_k,
+            dropout_p,
+            causal,
+            False,
+            softmax_scale,
+        )
+
+        ctx.save_for_backward(
+            query,
+            key,
+            value,
+            cu_seqlens_q,
+            cu_seqlens_k,
+            max_seqlen_q,
+            max_seqlen_k,
+            dropout_p,
+            causal,
+            softmax_scale,
+            attention_output,
+            log_sum_exp,
+            philox_seed,
+            philox_offset,
+        )
+
+        return attention_output
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        (
+            query,
+            key,
+            value,
+            cu_seqlens_q,
+            cu_seqlens_k,
+            max_seqlen_q,
+            max_seqlen_k,
+            dropout_p,
+            causal,
+            softmax_scale,
+            attention_output,
+            log_sum_exp,
+            philox_seed,
+            philox_offset,
+        ) = ctx.saved_tensors
+
+        query_grad, key_grad, value_grad = torch.ops.aten._flash_attention_backward(
+            grad_output,
+            query,
+            key,
+            value,
+            attention_output,
+            log_sum_exp,
+            cu_seqlens_q,
+            cu_seqlens_k,
+            max_seqlen_q,
+            max_seqlen_k,
+            dropout_p,
+            causal,
+            philox_seed,
+            philox_offset,
+            softmax_scale,
+        )
+
+        return query_grad, key_grad, value_grad
+
+
+def flash_attention(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    cu_seqlens_q: torch.Tensor,
+    cu_seqlens_k: torch.Tensor,
+    max_seqlen_q: torch.Tensor,
+    max_seqlen_k: torch.Tensor,
+    dropout_p: float,
+    softmax_scale: float,
+    causal: bool,
+) -> torch.Tensor:
+    # if is_flash_attention_available():
+    #     attention_output = flash_attn_varlen_func(
+    #         query,
+    #         key,
+    #         value,
+    #         cu_seqlens_q=cu_seqlens_q,
+    #         cu_seqlens_k=cu_seqlens_k,
+    #         max_seqlen_q=max_seqlen_q,
+    #         max_seqlen_k=max_seqlen_k,
+    #         dropout_p=dropout_p,
+    #         softmax_scale=softmax_scale,
+    #         causal=causal,
+    #     )
+    # else:
+    attention_output = _FlashAttentionVarlenTorch.apply(
+        query, key, value, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, dropout_p, softmax_scale, causal
+    )
+
+    return attention_output
+
 
 # Copied from transformers.models.llama.modeling_llama._get_unpad_data
 def get_unpad_data(attention_mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
