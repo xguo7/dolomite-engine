@@ -6,7 +6,7 @@ from transformers import DynamicCache
 from ...enums import PositionEmbeddingType
 from ..position_embedding import apply_rotary_pos_emb
 from .base import Attention
-from .utils import flash_attention
+from .flash_utils import flash_attention
 
 
 class PaddingFreeAttention(Attention):

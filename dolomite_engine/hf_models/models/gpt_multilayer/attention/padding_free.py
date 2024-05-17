@@ -1,8 +1,7 @@
 import torch
 
 from ....enums import PositionEmbeddingType
-from ....modeling_utils import apply_rotary_pos_emb
-from ....modeling_utils.attention.utils import flash_attention
+from ....modeling_utils import apply_rotary_pos_emb, flash_attention
 from .base import KeyValueProjection, MultiLayerAttention
 
 

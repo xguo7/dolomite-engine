@@ -2,8 +2,7 @@ import torch
 
 from .....utils import is_flash_attention_available
 from ....enums import PositionEmbeddingType
-from ....modeling_utils import apply_rotary_pos_emb, get_unpad_data
-from ....modeling_utils.attention.utils import flash_attention
+from ....modeling_utils import apply_rotary_pos_emb, flash_attention, get_unpad_data
 from .base import MultiLayerAttention
 
 
@@ -42,7 +41,6 @@ class MultiLayerFlashAttention2(MultiLayerAttention):
 
         indices_k, cu_seqlens_k, max_seqlen_k = get_unpad_data(attention_mask)
 
-        # TODO: figure out a way to move this outside
         key = index_first_axis(
             key.reshape(batch_size * key_length, self.num_key_value_heads, self.head_dim), indices_k
         )

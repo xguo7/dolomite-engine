@@ -5,7 +5,7 @@ from ....utils import is_flash_attention_available
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ..position_embedding import apply_rotary_pos_emb
 from .base import Attention
-from .utils import flash_attention, get_unpad_data
+from .flash_utils import flash_attention, get_unpad_data
 
 
 if is_flash_attention_available():
