@@ -3,11 +3,11 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 
-from ....utils import SafeTensorsWeightsManager
+from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import Attention, ParameterizedLinear
 from ..dropout import Dropout_TP
-from ..TP import ColumnParallelLinear, CopyToTensorParallelRegion, RowParallelLinear, get_tensor_parallel_group_manager
+from ..TP import ColumnParallelLinear, CopyToTensorParallelRegion, RowParallelLinear
 
 
 class Attention_TP(Attention):
@@ -30,8 +30,8 @@ class Attention_TP(Attention):
     ) -> None:
         nn.Module.__init__(self)
 
-        self.tp_rank = get_tensor_parallel_group_manager().get_rank()
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         self.causal = causal
         self.mask_value = None
@@ -153,8 +153,8 @@ class _MQA_KeyValueProjection(nn.Module):
         self.head_dim = head_dim
         self.add_bias = add_bias
 
-        self.tp_rank = get_tensor_parallel_group_manager().get_rank()
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         self.q_attn = ColumnParallelLinear(global_hidden_size, global_hidden_size, bias=add_bias)
         self.kv_attn = ParameterizedLinear(global_hidden_size, 2 * head_dim, bias=add_bias)

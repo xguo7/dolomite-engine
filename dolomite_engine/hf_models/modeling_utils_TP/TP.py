@@ -5,40 +5,17 @@ import torch.distributed
 
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
-from .random import CUDA_RNGStatesTracker
-
-
-_TENSOR_PARALLEL_GROUP_MANAGER: ProcessGroupManager = None
-_RNG_TRACKER: CUDA_RNGStatesTracker = None
-
-
-def get_cuda_rng_tracker() -> CUDA_RNGStatesTracker:
-    return _RNG_TRACKER
-
-
-def set_cuda_rng_tracker(tracker: CUDA_RNGStatesTracker) -> None:
-    global _RNG_TRACKER
-    _RNG_TRACKER = tracker
-
-
-def get_tensor_parallel_group_manager() -> ProcessGroupManager:
-    return _TENSOR_PARALLEL_GROUP_MANAGER
-
-
-def set_tensor_parallel_group_manager(process_group_manager: ProcessGroupManager) -> None:
-    global _TENSOR_PARALLEL_GROUP_MANAGER
-    _TENSOR_PARALLEL_GROUP_MANAGER = process_group_manager
 
 
 def _reduce(input: torch.Tensor) -> torch.Tensor:
     """All-reduce the input tensor across model parallel group."""
 
     # Bypass the function if we are using only 1 GPU.
-    if get_tensor_parallel_group_manager().get_world_size() == 1:
+    if ProcessGroupManager.get_tensor_parallel_world_size() == 1:
         return input
 
     # All-reduce.
-    torch.distributed.all_reduce(input, group=get_tensor_parallel_group_manager().get_process_group())
+    torch.distributed.all_reduce(input, group=ProcessGroupManager.get_tensor_parallel_mesh().get_group())
 
     return input
 
@@ -77,7 +54,7 @@ class ReduceFromTensorParallelRegion(torch.autograd.Function):
 
 class ColumnParallelLinear(ParameterizedLinear):
     def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         assert (
             out_features % self.tp_world_size == 0
@@ -110,7 +87,7 @@ class ColumnParallelLinear(ParameterizedLinear):
 
 class RowParallelLinear(ParameterizedLinear):
     def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
         self.is_tp_first_rank = get_tensor_parallel_group_manager().get_first_rank() == torch.distributed.get_rank()
 
         assert (
@@ -153,8 +130,8 @@ def tensor_parallel_split_safetensor_slice(slice, dim: int, start_end: Tuple[int
     dimensionality = len(shape)
     assert 1 <= dimensionality <= 2, f"tensor should be either 1 or 2 dimensional but {dimensionality} was found"
 
-    tp_rank = get_tensor_parallel_group_manager().get_rank()
-    tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+    tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+    tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
     if start_end is None:
         assert (
