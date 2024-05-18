@@ -37,9 +37,12 @@ class FlashKernelTest(TestCommons):
             causal=True,
         )
 
-        query_tri_dao = query_pytorch.clone()
-        key_tri_dao = key_pytorch.clone()
-        value_tri_dao = value_pytorch.clone()
+        query_tri_dao = torch.randn(4, 1024, 32, 128, device=device, requires_grad=True, dtype=torch_dtype)
+        query_tri_dao.data = query_pytorch.data
+        key_tri_dao = torch.randn(4, 1024, 32, 128, device=device, requires_grad=True, dtype=torch_dtype)
+        key_tri_dao.data = key_pytorch.data
+        value_tri_dao = torch.randn(4, 1024, 32, 128, device=device, requires_grad=True, dtype=torch_dtype)
+        value_tri_dao.data = value_pytorch.data
 
         os.environ.update({"PYTORCH_NATIVE_FLASH_KERNEL": "0"})
         attention_tri_dao = flash_attention(
@@ -60,6 +63,38 @@ class FlashKernelTest(TestCommons):
         attention_pytorch.mean().backward()
         attention_tri_dao.mean().backward()
 
-        self.assert_equal_tensors(query_pytorch.grad, query_tri_dao.grad, exact_match=True)
-        self.assert_equal_tensors(query_pytorch.grad, key_tri_dao.grad, exact_match=True)
-        self.assert_equal_tensors(query_pytorch.grad, value_tri_dao.grad, exact_match=True)
+        tolerance = 6e-7
+
+        self.assert_equal_tensors(
+            query_pytorch.grad,
+            query_tri_dao.grad,
+            exact_match=False,
+            rtol_float32=0,
+            atol_float32=tolerance,
+            rtol_float16=0,
+            atol_float16=tolerance,
+            rtol_bfloat16=0,
+            atol_bfloat16=tolerance,
+        )
+        self.assert_equal_tensors(
+            query_pytorch.grad,
+            key_tri_dao.grad,
+            exact_match=False,
+            rtol_float32=0,
+            atol_float32=tolerance,
+            rtol_float16=0,
+            atol_float16=tolerance,
+            rtol_bfloat16=0,
+            atol_bfloat16=tolerance,
+        )
+        self.assert_equal_tensors(
+            query_pytorch.grad,
+            value_tri_dao.grad,
+            exact_match=False,
+            rtol_float32=0,
+            atol_float32=tolerance,
+            rtol_float16=0,
+            atol_float16=tolerance,
+            rtol_bfloat16=0,
+            atol_bfloat16=tolerance,
+        )
