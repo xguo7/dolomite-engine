@@ -10,7 +10,7 @@ from ..utils import get_world_size, log_rank_0
 from .base import BaseDataset, BlendedDatasets
 from .dataloader import DataLoader
 from .debug import DebugDataset
-from .instruction_tuning import AlpacaDataset, DollyDataset, SlimOrcaDataset
+from .instruction_tuning import AlpacaDataset, DollyDataset, GlaiveCodeAssistantDataset, SlimOrcaDataset
 from .jsonlines import JSONLinesDataset
 from .megatron import get_megatron_gpt_dataloaders
 from .sampler import BlendedDistributedSampler
@@ -22,6 +22,7 @@ _DATASETS_LIST = {
     "AlpacaDataset": AlpacaDataset,
     "DebugDataset": DebugDataset,
     "DollyDataset": DollyDataset,
+    "GlaiveCodeAssistantDataset": GlaiveCodeAssistantDataset,
     "JSONLinesDataset": JSONLinesDataset,
     "SlimOrcaDataset": SlimOrcaDataset,
     "SST2Dataset": SST2Dataset,
