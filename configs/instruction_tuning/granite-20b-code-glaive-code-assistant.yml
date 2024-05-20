@@ -10,9 +10,9 @@ model_args:
   model_name: ibm-granite/granite-20b-code-base
   model_class: AutoModelForCausalLM
   attention_implementation: flash_attention_2
-  # enable efficient_cpu_initialization if you have low CPU memory
+  # enable efficient_initialization if you have low CPU memory
   # (this only works with distributed_backend: deepspeed)
-  efficient_cpu_initialization: false
+  efficient_initialization: false
 
 tuning_args:
   tuning_method: full_finetuning
