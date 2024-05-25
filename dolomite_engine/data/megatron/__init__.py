@@ -34,8 +34,8 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
 
     if dispatching_dataloader:
         num_ranks_per_node = torch.cuda.device_count()
-        node_rank = get_global_rank() // num_ranks_per_node
-        num_nodes = get_world_size() // num_ranks_per_node
+        node_rank = ProcessGroupManager.get_global_rank() // num_ranks_per_node
+        num_nodes = ProcessGroupManager.get_world_size() // num_ranks_per_node
 
         def _get_source_ranks_broadcast_ranks_broadcast_groups():
             result = []
@@ -47,7 +47,7 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
 
         source_ranks_broadcast_ranks_broadcast_groups = _get_source_ranks_broadcast_ranks_broadcast_groups()
 
-        is_built_on_rank = get_global_rank() == node_rank * num_ranks_per_node
+        is_built_on_rank = ProcessGroupManager.get_global_rank() == node_rank * num_ranks_per_node
     else:
         is_built_on_rank = True
 
@@ -172,8 +172,8 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
                 total_samples=len(dataset),
                 consumed_samples=consumed_samples,
                 micro_batch_size=args.training_parameters.micro_batch_size,
-                num_replicas=get_world_size(),
-                rank=get_global_rank(),
+                num_replicas=ProcessGroupManager.get_world_size(),
+                rank=ProcessGroupManager.get_global_rank(),
             )
 
             dataloader = ResumableDataLoader(

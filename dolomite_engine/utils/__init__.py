@@ -1,6 +1,5 @@
 import torch
 
-from ..arguments import TrainingArgs
 from .logging import log_rank_0, print_rank_0, print_ranks_all, set_logger
 from .mixed_precision import normalize_dtype_string, string_to_torch_dtype, torch_dtype_to_string
 from .packages import (
@@ -19,17 +18,15 @@ from .wrapper import get_module_class_from_name
 from .yaml import load_yaml
 
 
-def init_distributed(args: TrainingArgs) -> None:
+def init_distributed(zero_hpz_partition_size: int) -> None:
     """intialize distributed
 
     Args:
-        args (TrainingArgs): training args
+        zero_hpz_partition_size (int): HSDP size
     """
 
     ProcessGroupManager(
-        tensor_parallel_size=None,
-        data_parallel_size=None,
-        zero_hpz_partition_size=args.distributed_args.zero_hpz_partition_size,
+        tensor_parallel_size=None, data_parallel_size=None, zero_hpz_partition_size=zero_hpz_partition_size
     )
 
 
