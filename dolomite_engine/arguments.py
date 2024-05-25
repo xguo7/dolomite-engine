@@ -16,7 +16,6 @@ from .enums import (
     LossMask,
     LRDecaySchedule,
     Mode,
-    PaddingSide,
     ParamsGroupMethod,
     TuningMethod,
 )
@@ -38,8 +37,6 @@ class TokenizerArgs(BaseArgs):
     tokenizer_name: Optional[str] = None
     # add special tokens to the tokenizer
     additional_special_tokens: Optional[List[str]] = None
-    # padding side
-    padding_side: Optional[PaddingSide] = None
 
 
 class ModelArgs(BaseArgs):
@@ -301,6 +298,8 @@ class DistributedArgs(BaseArgs):
     communication_dtype: Optional[str] = None
     # whether to use torch.compile
     torch_compile: bool = False
+    # whether to use a dispatching dataloader
+    dispatching_dataloader: bool = False
 
     def model_post_init(self, __context: Any) -> None:
         _check_not_None([(self.zero_hpz_partition_size, "zero_hpz_partition_size")])

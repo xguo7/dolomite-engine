@@ -2,28 +2,27 @@ datasets:
   - class_name: DebugDataset
     class_args:
       num_examples: 100
+      token_id: 0
     data_name: debug
     data_sampling_ratio: 1
-    max_input_tokens: 4096
-    max_output_tokens: 4096
+    max_input_tokens: 1024
+    max_output_tokens: 128
 
 model_args:
-  model_name: bigcode/starcoder
-  model_class: GPTDolomiteForCausalLM
-  attention_implementation: flash_attention_2
-  use_padding_free_transformer: true
+  model_name: bigscience/bloom-560m
+  model_class: AutoModelForCausalLM
 
 tuning_args:
   tuning_method: full_finetuning
 
 save_args:
-  save_path: checkpoints
-  save_interval: 50
+  save_path: checkpoints/full_finetuning
+  save_interval: 500
 
 training_parameters:
-  num_training_steps: 100
-  eval_interval: 50
-  micro_batch_size: 6
+  num_training_steps: 4000
+  eval_interval: 500
+  micro_batch_size: 8
 
 optimizer_args:
   class_name: TorchAdamW
@@ -40,7 +39,3 @@ lr_scheduler_args:
 
 mixed_precision_args:
   dtype: bf16
-
-distributed_args:
-  distributed_backend: deepspeed
-  gradient_checkpointing_method: block

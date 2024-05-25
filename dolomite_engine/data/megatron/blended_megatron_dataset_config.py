@@ -14,7 +14,7 @@ class BlendedMegatronDatasetConfig:
     """Configuration object for megatron-core blended and megatron datasets
 
     Attributes:
-        is_built_on_rank (Callable): A callable which returns True if the dataset should be built
+        is_built_on_rank (bool): True if the dataset should be built
         on the current rank. It should be Megatron Core parallelism aware i.e. global rank, group
         rank, and virtual rank may inform its return value.
 

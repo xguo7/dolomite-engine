@@ -9,7 +9,7 @@ from transformers import set_seed
 
 from .arguments import TrainingArgs, get_args
 from .checkpointing import load_checkpoint_for_training, save_checkpoint
-from .data import DataLoader, get_dataloader, infinite_iterator
+from .data import ResumableDataLoader, get_dataloader, infinite_iterator
 from .distributed import wrap_model_for_distributed_training
 from .enums import DatasetSplit, DistributedBackend, FP8Backend, Mode
 from .model_wrapper import ModelWrapperForFinetuning, get_model, log_model
@@ -19,8 +19,6 @@ from .utils import (
     init_distributed,
     is_transformer_engine_available,
     log_rank_0,
-    register_profiler,
-    register_timer,
     setup_tf32,
 )
 
@@ -109,14 +107,12 @@ def track_val_metrics(global_step: int, val_loss: float, experiments_tracker: Ex
     experiments_tracker.track({"loss": val_loss}, step=global_step, context="val")
 
 
-@register_profiler("train_step")
-@register_timer("train_step")
 def train_step(
     model: ModelWrapperForFinetuning,
     optimizer: Optimizer,
     lr_scheduler: LambdaLR,
     distributed_backend: DistributedBackend,
-    train_dataloader: DataLoader,
+    train_dataloader: ResumableDataLoader,
     gradient_accumulation_steps: int,
     gradient_clipping: float,
     train_step_context: contextlib.AbstractContextManager,
@@ -128,7 +124,7 @@ def train_step(
         optimizer (Optimizer): optimizer
         lr_scheduler (LamdaLR): learning rate scheduler
         distributed_backend (DistributedBackend): distributed backend
-        train_dataloader (DataLoader): training dataloader
+        train_dataloader (ResumableDataLoader): training dataloader
         gradient_accumulation_steps (int): gradient accumulation steps
         gradient_clipping (float): gradient clipping value
 
@@ -193,8 +189,8 @@ def train(
     model: ModelWrapperForFinetuning,
     optimizer: Optimizer,
     lr_scheduler: LambdaLR,
-    train_dataloader: DataLoader,
-    val_dataloader: DataLoader,
+    train_dataloader: ResumableDataLoader,
+    val_dataloader: ResumableDataLoader,
     experiments_tracker: ExperimentsTracker,
     starting_iteration: int = 0,
 ) -> None:
@@ -205,8 +201,8 @@ def train(
         model (ModelWrapperForFinetuning): model
         optimizer (Optimizer): optimizer
         lr_scheduler (LRScheduler): learning rate scheduler
-        train_dataloader (DataLoader): training dataloader
-        val_dataloader (DataLoader): validation dataloader
+        train_dataloader (ResumableDataLoader): training dataloader
+        val_dataloader (ResumableDataLoader): validation dataloader
         experiments_tracker (ExperimentsTracker): metrics tracker
         starting_iteration (int): starting iteration
     """
@@ -278,10 +274,9 @@ def train(
             save_checkpoint(args, model, optimizer, lr_scheduler, train_dataloader, experiments_tracker, global_step)
 
 
-@register_profiler("evaluate_dataset")
 @torch.no_grad()
 def evaluate(
-    val_dataloader: DataLoader,
+    val_dataloader: ResumableDataLoader,
     model: ModelWrapperForFinetuning,
     global_step: int,
     experiments_tracker: ExperimentsTracker,
@@ -289,7 +284,7 @@ def evaluate(
     """main validation loop for the program
 
     Args:
-        val_dataloader (DataLoader): validation dataloader
+        val_dataloader (ResumableDataLoader): validation dataloader
         model (ModelWrapperForFinetuning): model
         global_step (int): global step during training
         experiments_tracker (ExperimentsTracker): metrics tracker
@@ -340,7 +335,6 @@ def main() -> None:
         mode=mode,
         tokenizer=model.tokenizer,
         is_encoder_decoder=model.is_encoder_decoder,
-        padding_side=model.padding_side,
     )
 
     val_dataloader = None
@@ -351,7 +345,6 @@ def main() -> None:
             mode=mode,
             tokenizer=model.tokenizer,
             is_encoder_decoder=model.is_encoder_decoder,
-            padding_side=model.padding_side,
         )
 
     model, optimizer, lr_scheduler = wrap_model_for_distributed_training(args, model)
