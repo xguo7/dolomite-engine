@@ -12,6 +12,7 @@ from .packages import (
 )
 from .parallel import ProcessGroupManager, run_rank_n
 from .pydantic import BaseArgs
+from .random import get_cuda_rng_tracker
 from .safetensors import SafeTensorsWeightsManager
 from .tracking import ExperimentsTracker, ProgressBar, RunningMean
 from .wrapper import get_module_class_from_name
