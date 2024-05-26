@@ -153,9 +153,6 @@ class _MQA_KeyValueProjection(nn.Module):
         self.head_dim = head_dim
         self.add_bias = add_bias
 
-        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
-        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
-
         self.q_attn = ColumnParallelLinear(global_hidden_size, global_hidden_size, bias=add_bias)
         self.kv_attn = ParameterizedLinear(global_hidden_size, 2 * head_dim, bias=add_bias)
 
@@ -169,8 +166,11 @@ class _MQA_KeyValueProjection(nn.Module):
         return query, key, value
 
     def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
-        start_index = self.tp_rank * (self.global_hidden_size // self.tp_world_size)
-        end_index = (self.tp_rank + 1) * (self.global_hidden_size // self.tp_world_size)
+        tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
+        start_index = tp_rank * (self.global_hidden_size // tp_world_size)
+        end_index = (tp_rank + 1) * (self.global_hidden_size // tp_world_size)
 
         weight = safetensors_weight_manager.get_slice(prefix + "c_attn.weight")
         q_attn_state_dict = {"weight": weight[start_index:end_index, :]}
