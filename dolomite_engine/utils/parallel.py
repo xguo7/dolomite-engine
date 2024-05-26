@@ -75,6 +75,10 @@ class ProcessGroupManager:
         return _DEVICE_MESH["tp"]
 
     @staticmethod
+    def get_tensor_parallel_group() -> DeviceMesh:
+        return ProcessGroupManager.get_data_parallel_mesh().get_group()
+
+    @staticmethod
     def get_tensor_parallel_rank() -> int:
         return ProcessGroupManager.get_tensor_parallel_mesh().get_rank()
 
