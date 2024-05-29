@@ -6,7 +6,7 @@ from typing import Any, List, Optional, Tuple, Type, Union
 
 import numpy
 import torch
-import torch.distributed as dist
+import torch.distributed
 from transformers import AutoTokenizer
 
 from ...utils import ProcessGroupManager
@@ -336,7 +336,7 @@ class BlendedMegatronDatasetBuilder(object):
         Returns:
             Optional[DistributedDataset]: The DistributedDataset instantion or None
         """
-        if dist.is_initialized():
+        if torch.distributed.is_initialized():
             rank = ProcessGroupManager.get_global_rank()
             caching_allowed = rank == 0 or (torch.cuda.current_device() == 0 and self.config.node_uses_local_storage)
 
@@ -355,7 +355,7 @@ class BlendedMegatronDatasetBuilder(object):
                     )
                     raise Exception(log) from err
 
-            dist.barrier()
+            torch.distributed.barrier()
 
             # After, build on other ranks
             if not caching_allowed and self.config.is_built_on_rank:
@@ -367,7 +367,7 @@ class BlendedMegatronDatasetBuilder(object):
 
     def _get_indexed_dataset(self, path_prefix: str) -> Optional[MMapIndexedDataset]:
         indexed_dataset = None
-        if not dist.is_initialized() or self.config.is_built_on_rank:
+        if not torch.distributed.is_initialized() or self.config.is_built_on_rank:
             indexed_dataset = MMapIndexedDataset(path_prefix, self.cls.is_multimodal())
 
         return indexed_dataset
