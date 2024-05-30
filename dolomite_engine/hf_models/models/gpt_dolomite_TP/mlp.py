@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ....utils import SafeTensorsWeightsManager
+from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ...modeling_utils import get_activation_function, is_glu
 from ...modeling_utils_TP import (
     ColumnParallelLinear,
@@ -23,8 +23,8 @@ class MLP_TP(MLP):
     ) -> None:
         nn.Module.__init__(self)
 
-        self.tp_rank = get_tensor_parallel_group_manager().get_rank()
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         self.is_glu_activation = is_glu(activation_function)
         self.add_bias = add_bias

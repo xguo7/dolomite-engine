@@ -7,7 +7,7 @@ from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
 
 
-def _reduce(input: torch.Tensor) -> torch.Tensor:
+def _tensor_parallel_all_reduce(input: torch.Tensor) -> torch.Tensor:
     """All-reduce the input tensor across model parallel group."""
 
     # Bypass the function if we are using only 1 GPU.
@@ -29,7 +29,7 @@ class CopyToTensorParallelRegion(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
-        return _reduce(grad_output)
+        return _tensor_parallel_all_reduce(grad_output)
 
 
 class ReduceFromTensorParallelRegion(torch.autograd.Function):
@@ -37,14 +37,14 @@ class ReduceFromTensorParallelRegion(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input: torch.Tensor) -> torch.Tensor:
-        return _reduce(input)
+        return _tensor_parallel_all_reduce(input)
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
         return grad_output
 
 
-def _all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
+def _tensor_parallel_all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
     """All-reduce the input tensor across model parallel group."""
 
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
@@ -55,8 +55,10 @@ def _all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
 
     if dim == 0:
         shape = input.shape[0] * tp_world_size, input.shape[1]
-    else:
+    elif dim == 1:
         shape = input.shape[0], input.shape[1] * tp_world_size
+    else:
+        raise ValueError(f"unexpected dim={dim}")
 
     # All-reduce.
     torch.distributed.all_gather_into_tensor(
@@ -102,8 +104,8 @@ class ColumnParallelLinear(ParameterizedLinear):
         )
 
     def _save_to_state_dict(self, destination, prefix, keep_vars):
-        destination[prefix + "weight"] = _all_gather(self.weight, dim=0)
-        destination[prefix + "bias"] = _all_gather(self.bias, dim=0)
+        destination[prefix + "weight"] = _tensor_parallel_all_gather(self.weight, dim=0)
+        destination[prefix + "bias"] = _tensor_parallel_all_gather(self.bias, dim=0)
 
 
 class RowParallelLinear(ParameterizedLinear):
@@ -147,7 +149,7 @@ class RowParallelLinear(ParameterizedLinear):
         )
 
     def _save_to_state_dict(self, destination, prefix, keep_vars):
-        destination[prefix + "weight"] = _all_gather(self.weight, dim=1)
+        destination[prefix + "weight"] = _tensor_parallel_all_gather(self.weight, dim=1)
         destination[prefix + "bias"] = self.bias
 
 

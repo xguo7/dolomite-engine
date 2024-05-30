@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 
@@ -7,17 +9,17 @@ from .TP import ReduceFromTensorParallelRegion
 
 class Embedding_TP(nn.Embedding):
     def __init__(self, num_embeddings: int, embedding_dim: int, make_vocab_size_divisible_by: int = 64) -> None:
-        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         assert make_vocab_size_divisible_by % self.tp_world_size == 0
 
         embedding_matrix_size_per_tp_rank = (
-            make_vocab_size_divisible_by * (1 + (num_embeddings // make_vocab_size_divisible_by))
+            make_vocab_size_divisible_by * math.ceil(num_embeddings // make_vocab_size_divisible_by)
         ) // self.tp_world_size
 
-        self.vocab_start_index = self.tp_rank * embedding_matrix_size_per_tp_rank
-        self.vocab_end_index = min((self.tp_rank + 1) * embedding_matrix_size_per_tp_rank, num_embeddings)
+        self.vocab_start_index = tp_rank * embedding_matrix_size_per_tp_rank
+        self.vocab_end_index = min((tp_rank + 1) * embedding_matrix_size_per_tp_rank, num_embeddings)
 
         super().__init__(embedding_matrix_size_per_tp_rank, embedding_dim)
 
@@ -26,18 +28,19 @@ class Embedding_TP(nn.Embedding):
             # Build the mask.
             input_mask = (input < self.vocab_start_index) | (input >= self.vocab_end_index)
             # Mask the input.
-            masked_input = input.clone() - self.vocab_start_index
+            masked_input = input - self.vocab_start_index
             masked_input[input_mask] = 0
         else:
             masked_input = input
 
         output_parallel = super().forward(masked_input)
 
-        # Mask the output embedding.
         if self.tp_world_size > 1:
+            # Mask the output embedding.
             output_parallel[input_mask, :] = 0
+            output_parallel = ReduceFromTensorParallelRegion.apply(output_parallel)
 
-        return ReduceFromTensorParallelRegion.apply(output_parallel)
+        return output_parallel
 
     def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
         weight = safetensors_weight_manager.get_slice(prefix + "weight")[

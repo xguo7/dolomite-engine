@@ -80,7 +80,7 @@ class ProcessGroupManager:
 
     @staticmethod
     def get_tensor_parallel_rank() -> int:
-        return ProcessGroupManager.get_tensor_parallel_mesh().get_rank()
+        return ProcessGroupManager.get_tensor_parallel_mesh().get_local_rank()
 
     @staticmethod
     def get_tensor_parallel_world_size() -> int:
