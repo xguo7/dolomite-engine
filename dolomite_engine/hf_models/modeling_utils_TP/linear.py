@@ -13,7 +13,15 @@ from .TP import (
 
 
 class ColumnParallelLinear(ParameterizedLinear):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        device: torch.device = None,
+        dtype: torch.dtype = None,
+        std: float = None,
+    ) -> None:
         tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         assert (
@@ -21,7 +29,15 @@ class ColumnParallelLinear(ParameterizedLinear):
         ), f"`out_features` ({out_features}) must be divisible by `tensor_parallel_world_size` ({tp_world_size})"
 
         self.out_features_per_device = out_features // tp_world_size
-        super().__init__(in_features, self.out_features_per_device, bias)
+
+        super().__init__(
+            in_features=in_features,
+            out_features=self.out_features_per_device,
+            bias=bias,
+            device=device,
+            dtype=dtype,
+            std=std,
+        )
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         input = CopyToTensorParallelRegion.apply(input)
@@ -51,7 +67,15 @@ class ColumnParallelLinear(ParameterizedLinear):
 
 
 class RowParallelLinear(ParameterizedLinear):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        bias: bool = True,
+        device: torch.device = None,
+        dtype: torch.dtype = None,
+        std: float = None,
+    ) -> None:
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         assert (
@@ -61,17 +85,24 @@ class RowParallelLinear(ParameterizedLinear):
         self.in_features_per_device = in_features // self.tp_world_size
         self.out_features = out_features
 
-        super().__init__(self.in_features_per_device, out_features, bias=False)
+        super().__init__(
+            in_features=self.in_features_per_device,
+            out_features=out_features,
+            bias=False,
+            device=device,
+            dtype=dtype,
+            std=std,
+        )
 
-        self.tp_bias = bias
-        if self.tp_bias:
-            self.bias = nn.Parameter(torch.empty(out_features))
+        self.tp_bias = None
+        if bias:
+            self.tp_bias = nn.Parameter(torch.empty(out_features))
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         input = super().forward(input)
         input = ReduceFromTensorParallelRegion.apply(input)
-        if self.tp_bias:
-            input = input + self.bias
+        if self.tp_bias is not None:
+            input = input + self.tp_bias
         return input
 
     def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
