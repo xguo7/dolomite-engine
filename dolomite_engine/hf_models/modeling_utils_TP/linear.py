@@ -117,7 +117,7 @@ class RowParallelLinear(ParameterizedLinear):
 
     def extra_repr(self) -> str:
         return "in_features_per_device={}, out_features={}, bias={}".format(
-            self.in_features_per_device, self.out_features, self.tp_bias
+            self.in_features_per_device, self.out_features, self.tp_bias is not None
         )
 
     def _save_to_state_dict(self, destination, prefix, keep_vars):
