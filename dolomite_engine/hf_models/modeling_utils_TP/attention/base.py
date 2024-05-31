@@ -8,7 +8,8 @@ from ...config import CommonConfig
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import Attention, ParameterizedLinear
 from ..dropout import Dropout_TP
-from ..TP import ColumnParallelLinear, CopyToTensorParallelRegion, RowParallelLinear
+from ..linear import ColumnParallelLinear, RowParallelLinear
+from ..TP import CopyToTensorParallelRegion
 
 
 class Attention_TP(Attention):
