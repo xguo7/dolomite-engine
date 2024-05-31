@@ -9,23 +9,30 @@ from ...modeling_utils_TP import (
     RowParallelLinear,
     tensor_parallel_split_safetensor_slice,
 )
+from ..gpt_dolomite import GPTDolomiteConfig
 from ..gpt_dolomite.mlp import MLP
 
 
 class MLP_TP(MLP):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        activation_function: str,
-        add_bias: bool = True,
-        residual_dropout: float = 0.1,
-    ) -> None:
+    def __init__(self, config: GPTDolomiteConfig) -> None:
         nn.Module.__init__(self)
+
+        hidden_size = config.n_embd
+        intermediate_size = config.n_inner
+        activation_function = config.activation_function
+        add_bias = config.add_bias
+        residual_dropout = config.resid_pdrop
+
+        self.init_method = config.init_method
+        self.initializer_range = config.initializer_range
+        self.m_width = config.m_width
+        self.n_layer = config.n_layer
 
         self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
+        self.hidden_size = config.n_embd
+        self.intermediate_size = config.n_inner
         self.is_glu_activation = is_glu(activation_function)
         self.add_bias = add_bias
 
@@ -34,9 +41,12 @@ class MLP_TP(MLP):
             2 * intermediate_size if self.is_glu_activation else intermediate_size,
             bias=add_bias,
         )
+
         self.act = get_activation_function(activation_function)
+
         self.c_proj = RowParallelLinear(intermediate_size, hidden_size, bias=add_bias)
-        self.dropout = Dropout_TP(residual_dropout)
+
+        self.dropout = nn.Identity() if residual_dropout == 0 else Dropout_TP(residual_dropout)
 
     def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
         # GLU is a special case and needs to be handled explicitely
