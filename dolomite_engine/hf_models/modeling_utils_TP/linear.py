@@ -44,7 +44,9 @@ class ColumnParallelLinear(ParameterizedLinear):
         input = super().forward(input)
         return input
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         weight = safetensors_weight_manager.get_slice(prefix + "weight")
         weight = tensor_parallel_split_safetensor_slice(weight, dim=0)
         state_dict = {"weight": weight}
@@ -105,7 +107,9 @@ class RowParallelLinear(ParameterizedLinear):
             input = input + self.tp_bias
         return input
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         weight = safetensors_weight_manager.get_slice(prefix + "weight")
         weight = tensor_parallel_split_safetensor_slice(weight, dim=1)
         state_dict = {"weight": weight}

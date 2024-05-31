@@ -48,7 +48,9 @@ class MLP_TP(MLP):
 
         self.dropout = nn.Identity() if residual_dropout == 0 else Dropout_TP(residual_dropout)
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         # GLU is a special case and needs to be handled explicitely
         if self.is_glu_activation:
             weight = safetensors_weight_manager.get_slice(prefix + "c_fc.weight")
@@ -80,6 +82,6 @@ class MLP_TP(MLP):
 
             self.c_fc.load_state_dict(state_dict)
         else:
-            self.c_fc.load_unsharded_weights(safetensors_weight_manager, prefix=prefix + "c_fc.")
+            self.c_fc.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix=prefix + "c_fc.")
 
-        self.c_proj.load_unsharded_weights(safetensors_weight_manager, prefix=prefix + "c_proj.")
+        self.c_proj.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix=prefix + "c_proj.")

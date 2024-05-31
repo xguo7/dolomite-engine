@@ -43,7 +43,9 @@ class GPTDolomiteBlock_TP(GPTDolomiteBlock):
         )
         self.mlp = MLP_TP(config)
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "ln_1.weight")}
         if hasattr(self.ln_1, "bias"):
             state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_1.bias")
@@ -54,5 +56,5 @@ class GPTDolomiteBlock_TP(GPTDolomiteBlock):
             state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_2.bias")
         self.ln_2.load_state_dict(state_dict)
 
-        self.attn.load_unsharded_weights(safetensors_weight_manager, prefix + "attn.")
-        self.mlp.load_unsharded_weights(safetensors_weight_manager, prefix + "mlp.")
+        self.attn.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "attn.")
+        self.mlp.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "mlp.")

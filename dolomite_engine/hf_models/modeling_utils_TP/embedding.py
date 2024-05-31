@@ -42,7 +42,9 @@ class Embedding_TP(nn.Embedding):
 
         return output_parallel
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         weight = safetensors_weight_manager.get_slice(prefix + "weight")[
             self.vocab_start_index : self.vocab_end_index, :
         ]

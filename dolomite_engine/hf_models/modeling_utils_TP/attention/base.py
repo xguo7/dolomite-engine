@@ -112,12 +112,14 @@ class Attention_TP(Attention):
         self.attn_dropout = nn.Identity() if self.attn_pdrop == 0 else Dropout_TP(self.attn_pdrop)
         self.resid_dropout = nn.Identity() if self.resid_pdrop == 0 else Dropout_TP(self.resid_pdrop)
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
-        self.c_attn.load_unsharded_weights(
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
+        self.c_attn.load_from_safetensors_weights_manager(
             safetensors_weight_manager,
             prefix=prefix if self.attention_head_type == AttentionHeadType.mqa else prefix + "c_attn.",
         )
-        self.c_proj.load_unsharded_weights(safetensors_weight_manager, prefix=prefix + "c_proj.")
+        self.c_proj.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix=prefix + "c_proj.")
 
     def _prepare_qkv_for_forward_mqa(
         self, query_key_value: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
@@ -154,7 +156,9 @@ class _MQA_QueryKeyValueProjection(nn.Module):
 
         return query, key, value
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
         tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
         tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 

@@ -75,8 +75,10 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
             return_dict,
         )
 
-    def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
-        self.transformer.load_unsharded_weights(safetensors_weight_manager, prefix + "transformer.")
+    def load_from_safetensors_weights_manager(
+        self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
+    ) -> None:
+        self.transformer.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "transformer.")
 
         if self.tensor_parallel_vocab_matrix:
             state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "transformer.wte.weight")}
@@ -111,7 +113,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         # load weights into tensor parallel model using SafeTensorsWeightsManager class
         # this avoids loading multiple copies of the parameters in CPU memory
         safetensors_weight_manager = SafeTensorsWeightsManager(model_name)
-        model.load_unsharded_weights(safetensors_weight_manager)
+        model.load_from_safetensors_weights_manager(safetensors_weight_manager)
 
         # TODO call self.post_init() for non-TP vocab matrix here
 
