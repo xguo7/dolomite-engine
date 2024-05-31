@@ -29,6 +29,9 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
         self.max_position_embeddings = config.max_position_embeddings
+        self.num_key_value_heads = config.num_key_value_heads
+        self.m_emb = config.m_emb
+        self.initializer_range = config.initializer_range
         self.head_dim = self.embed_dim // self.num_heads
 
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
@@ -38,7 +41,7 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         else:
             self.wte = ParameterizedEmbedding(config.vocab_size, self.embed_dim)
 
-        self.drop = Dropout_TP(config.embd_pdrop)
+        self.drop = nn.Identity() if config.embd_pdrop == 0 else Dropout_TP(config.embd_pdrop)
         self.h = nn.ModuleList(
             [
                 GPTDolomiteBlock_TP(

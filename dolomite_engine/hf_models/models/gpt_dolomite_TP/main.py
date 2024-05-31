@@ -34,6 +34,8 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         # TODO investigate how to split this for HF generate API
         self.lm_head = ParameterizedLinear(config.n_embd, config.vocab_size, bias=False)
 
+        self.m_width = config.m_width
+
         # Initialize weights and apply final processing
         if not self.tensor_parallel_vocab_matrix:
             self.tie_weights()

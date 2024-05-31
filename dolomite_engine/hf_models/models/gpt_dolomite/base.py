@@ -186,7 +186,6 @@ class GPTDolomiteModel(GPTDolomitePreTrainedModel):
         assert (
             self.embed_dim % self.num_heads == 0
         ), f"`embed_dim` ({self.embed_dim}) must be divisible by `num_heads` ({self.num_heads})"
-
         self.head_dim = self.embed_dim // self.num_heads
 
         self.wte = ParameterizedEmbedding(config.vocab_size, self.embed_dim, std=self.initializer_range)
