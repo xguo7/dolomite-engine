@@ -110,13 +110,8 @@ class RowParallelLinear(ParameterizedLinear):
         weight = tensor_parallel_split_safetensor_slice(weight, dim=1)
         state_dict = {"weight": weight}
 
-        if self.bias is not None:
-            assert (
-                self.is_tp_first_rank
-            ), "bias parameter found on rank that is not the first rank for the process group"
-
-            bias = safetensors_weight_manager.get_tensor(prefix + "bias")
-            state_dict["bias"] = bias
+        if self.tp_bias is not None:
+            state_dict["tp_bias"] = safetensors_weight_manager.get_tensor(prefix + "bias")
 
         self.load_state_dict(state_dict)
 

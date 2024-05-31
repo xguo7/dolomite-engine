@@ -20,10 +20,14 @@ class Attention_TP(Attention):
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         self.causal = causal
-
         self.global_hidden_size = config.n_embd
         self.global_num_heads = config.n_head
         self.global_num_key_value_heads = config.num_key_value_heads
+        self.add_bias = config.add_bias
+        self.initializer_range = config.initializer_range
+        self.m_width = config.m_width
+        self.n_layer = config.n_layer
+        self.init_method = config.init_method
 
         assert (
             self.global_hidden_size % self.global_num_heads == 0
