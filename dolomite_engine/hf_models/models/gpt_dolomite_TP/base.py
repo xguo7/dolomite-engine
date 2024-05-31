@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from ....utils import SafeTensorsWeightsManager
+from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import ParameterizedEmbedding, RoPE, YaRNScaledRoPE, get_normalization_function
 from ...modeling_utils_TP import Alibi_TP, Dropout_TP, Embedding_TP
@@ -31,7 +31,7 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         self.max_position_embeddings = config.max_position_embeddings
         self.head_dim = self.embed_dim // self.num_heads
 
-        self.tp_world_size = get_tensor_parallel_group_manager().get_world_size()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         if self.tensor_parallel_vocab_matrix:
             self.wte = Embedding_TP(config.vocab_size, self.embed_dim)
