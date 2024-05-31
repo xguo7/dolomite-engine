@@ -2,13 +2,8 @@ import torch
 import torch.distributed
 from transformers import AutoTokenizer
 
-from dolomite_engine import (
-    CUDA_RNGStatesTracker,
-    GPTDolomiteForCausalLM_TP,
-    ProcessGroupManager,
-    set_cuda_rng_tracker,
-    set_tensor_parallel_group_manager,
-)
+from dolomite_engine.hf_models import GPTDolomiteForCausalLM_TP
+from dolomite_engine.utils import CUDA_RNGStatesTracker, ProcessGroupManager, set_cuda_rng_tracker
 
 
 # initialize distributed
@@ -19,9 +14,7 @@ local_rank = torch.distributed.get_rank() % device_count_per_node
 
 torch.cuda.set_device(local_rank)
 
-# this assumes all GPUs fall in tensor parallel group
-tensor_parallel_manager = ProcessGroupManager()
-set_tensor_parallel_group_manager(tensor_parallel_manager)
+ProcessGroupManager(tensor_parallel_size=8)
 
 # this is needed when combining different kinds of parallelism for training
 # leave as is if unaware of what you are doing
