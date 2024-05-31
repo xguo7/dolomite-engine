@@ -78,10 +78,9 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         for layer_idx, block in tqdm(enumerate(self.h), desc="Loading layers"):
             block.load_unsharded_weights(safetensors_weight_manager, prefix + f"h.{layer_idx}.")
 
-        state_dict = {
-            "weight": safetensors_weight_manager.get_tensor(prefix + "ln_f.weight"),
-            "bias": safetensors_weight_manager.get_tensor(prefix + "ln_f.bias"),
-        }
+        state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "ln_f.weight")}
+        if hasattr(self.ln_f, "bias"):
+            state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_f.bias")
         self.ln_f.load_state_dict(state_dict)
 
     def _load_embeddings(
