@@ -30,7 +30,7 @@ _ZERO_HPZ_PARTITION_SIZE: int = None
 
 class ProcessGroupManager:
     def __init__(
-        self, tensor_parallel_size: int = 1, data_parallel_size: int = 1, zero_hpz_partition_size: int = None
+        self, tensor_parallel_size: int = None, data_parallel_size: int = None, zero_hpz_partition_size: int = None
     ) -> None:
         if tensor_parallel_size is None:
             tensor_parallel_size = 1
