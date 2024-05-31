@@ -75,8 +75,17 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
 
     def load_unsharded_weights(self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = "") -> None:
         self._load_embeddings(self.wte, safetensors_weight_manager, prefix + "wte.")
+
         if self.position_embedding_type == PositionEmbeddingType.learned_absolute:
             self._load_embeddings(self.wpe, safetensors_weight_manager, prefix + "wpe.")
+        elif self.position_embedding_type == PositionEmbeddingType.alibi:
+            with torch.device(torch.cuda.current_device()):
+                self.alibi.reset_parameters()
+        elif self.position_embedding_type == PositionEmbeddingType.rope:
+            with torch.device(torch.cuda.current_device()):
+                self.rope.reset_parameters()
+        else:
+            raise ValueError(f"unexpected position_embedding_type ({self.position_embedding_type})")
 
         for layer_idx, block in tqdm(enumerate(self.h), desc="Loading layers"):
             block.load_unsharded_weights(safetensors_weight_manager, prefix + f"h.{layer_idx}.")
@@ -85,12 +94,6 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         if hasattr(self.ln_f, "bias"):
             state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_f.bias")
         self.ln_f.load_state_dict(state_dict)
-
-        # these are still on CPU
-        if self.position_embedding_type == PositionEmbeddingType.alibi:
-            self.alibi.reset_parameters()
-        elif self.position_embedding_type == PositionEmbeddingType.rope:
-            self.rope.reset_parameters()
 
     def _load_embeddings(
         self,
