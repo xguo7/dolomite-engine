@@ -23,15 +23,6 @@ parser.add_argument("--tmp-path", type=str)
 args = parser.parse_args()
 
 
-# initialize distributed
-torch.distributed.init_process_group("nccl")
-
-device_count_per_node = torch.cuda.device_count()
-local_rank = torch.distributed.get_rank() % device_count_per_node
-
-torch.cuda.set_device(local_rank)
-
-# this assumes all GPUs fall in tensor parallel group
 ProcessGroupManager(tensor_parallel_size=8)
 
 # this is needed when combining different kinds of parallelism for training
@@ -43,7 +34,7 @@ set_cuda_rng_tracker(cuda_rng_tracker)
 
 num_key_value_heads = None
 if AttentionHeadType(args.attention_head_type) == AttentionHeadType.gqa:
-    num_key_value_heads = 4
+    num_key_value_heads = 8
 
 config = GPTDolomiteConfig(
     attention_head_type=args.attention_head_type,
@@ -51,7 +42,8 @@ config = GPTDolomiteConfig(
     position_embedding_type=args.position_embedding_type,
     num_key_value_heads=num_key_value_heads,
     add_bias=False,
-    n_embd=12,
+    n_embd=128,
+    n_head=16,
 )
 
 if torch.distributed.get_rank() == 0:
@@ -87,8 +79,7 @@ model_tp = model_tp.to_empty(device=torch.cuda.current_device())
 # load weights into tensor parallel model using SafeTensorsWeightsManager class
 # this avoids loading multiple copies of the parameters in CPU memory
 safetensors_weight_manager = SafeTensorsWeightsManager(args.tmp_path)
-model_tp.load_from_safetensors_weights_manager(safetensors_weight_manager)
-model_tp.transformer.rope.initialize("cuda")
+model_tp.load_unsharded_weights(safetensors_weight_manager)
 
 # set model to eval mode
 model_tp.eval()
