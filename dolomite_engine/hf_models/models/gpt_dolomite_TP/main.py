@@ -113,6 +113,9 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         safetensors_weight_manager = SafeTensorsWeightsManager(model_name)
         model.load_unsharded_weights(safetensors_weight_manager)
 
+        # alibi and rope are still not on GPU, not sure if there is another way to do it
+        model = model.to(device=torch.cuda.current_device())
+
         # TODO call self.post_init() for non-TP vocab matrix here
 
         return model

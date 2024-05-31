@@ -23,7 +23,7 @@ cuda_rng_tracker.add("tensor-parallel-seed", 42)
 set_cuda_rng_tracker(cuda_rng_tracker)
 
 
-model_name = "checkpoints-13b-8k/iter_00300000"
+model_name = "save/"
 
 model = GPTDolomiteForCausalLM_TP.from_pretrained(model_name)
 
@@ -42,4 +42,4 @@ for i in x:
 y = model.generate(**x, max_new_tokens=100)
 
 if torch.distributed.get_rank() == 0:
-    print(tokenizer.batch_decode(y))
+    print(tokenizer.batch_decode(y)[0])

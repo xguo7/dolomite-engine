@@ -4,15 +4,12 @@ import random
 import torch
 import torch.distributed
 
-from dolomite_engine import (
-    AttentionHeadType,
+from dolomite_engine.hf_models import AttentionHeadType, GPTDolomiteConfig, GPTDolomiteForCausalLM_TP
+from dolomite_engine.utils import (
     CUDA_RNGStatesTracker,
-    GPTDolomiteConfig,
-    GPTDolomiteForCausalLM_TP,
     ProcessGroupManager,
     SafeTensorsWeightsManager,
     set_cuda_rng_tracker,
-    set_tensor_parallel_group_manager,
 )
 
 from ..test_common import TestCommons
@@ -35,8 +32,7 @@ local_rank = torch.distributed.get_rank() % device_count_per_node
 torch.cuda.set_device(local_rank)
 
 # this assumes all GPUs fall in tensor parallel group
-tensor_parallel_manager = ProcessGroupManager()
-set_tensor_parallel_group_manager(tensor_parallel_manager)
+ProcessGroupManager(tensor_parallel_size=8)
 
 # this is needed when combining different kinds of parallelism for training
 # leave as is if unaware of what you are doing
@@ -65,7 +61,6 @@ if torch.distributed.get_rank() == 0:
     model = model.to_empty(device=torch.cuda.current_device())
     for _, param in model.named_parameters():
         param.data.normal_(0, 0.0125)
-    model.transformer.rope.initialize("cuda")
 
     model.eval()
 

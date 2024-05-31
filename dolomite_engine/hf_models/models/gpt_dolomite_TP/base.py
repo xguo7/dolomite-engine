@@ -86,6 +86,12 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
             state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_f.bias")
         self.ln_f.load_state_dict(state_dict)
 
+        # these are still on CPU
+        if self.position_embedding_type == PositionEmbeddingType.alibi:
+            self.alibi.reset_parameters()
+        elif self.position_embedding_type == PositionEmbeddingType.rope:
+            self.rope.reset_parameters()
+
     def _load_embeddings(
         self,
         module: Union[Embedding_TP, ParameterizedEmbedding],
