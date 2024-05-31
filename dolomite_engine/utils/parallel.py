@@ -3,7 +3,7 @@ from typing import Callable
 
 import torch
 import torch.distributed
-from torch.distributed import ProcessGroup, get_process_group_ranks, get_rank, get_world_size
+from torch.distributed import ProcessGroup, get_process_group_ranks
 from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
 
 
@@ -30,18 +30,15 @@ _ZERO_HPZ_PARTITION_SIZE: int = None
 
 class ProcessGroupManager:
     def __init__(
-        self, tensor_parallel_size: int = None, data_parallel_size: int = None, zero_hpz_partition_size: int = None
+        self, tensor_parallel_size: int = 1, data_parallel_size: int = 1, zero_hpz_partition_size: int = None
     ) -> None:
-        assert get_rank() == int(os.getenv("RANK", 0))
-
-        local_rank = int(os.getenv("LOCAL_RANK", 0))
-        torch.cuda.set_device(local_rank)
-
         if tensor_parallel_size is None:
             tensor_parallel_size = 1
 
+        total_gpus = int(os.getenv("WORLD_SIZE", 1))
+
         if data_parallel_size is None:
-            data_parallel_size = get_world_size() // tensor_parallel_size
+            data_parallel_size = total_gpus // tensor_parallel_size
 
         global _MESH, _ZERO_HPZ_PARTITION_SIZE
 
@@ -52,6 +49,9 @@ class ProcessGroupManager:
         )
 
         _ZERO_HPZ_PARTITION_SIZE = zero_hpz_partition_size
+
+        local_rank = int(os.getenv("LOCAL_RANK", 0))
+        torch.cuda.set_device(local_rank)
 
     @staticmethod
     def get_mesh() -> int:
