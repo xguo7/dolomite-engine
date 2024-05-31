@@ -21,14 +21,14 @@ class Attention_TP(Attention):
 
         self.causal = causal
 
+        self.global_hidden_size = config.n_embd
         assert (
             self.global_hidden_size % self.global_num_heads == 0
         ), f"`embed_dim` ({self.global_hidden_size}) must be divisible by `num_heads` ({self.global_num_heads})"
-        self.global_hidden_size = config.n_embd
         self.hidden_size = self.global_hidden_size // self.tp_world_size
 
-        assert self.global_num_heads % self.tp_world_size == 0, "num_heads must be divisible by TP world size"
         self.global_num_heads = config.n_head
+        assert self.global_num_heads % self.tp_world_size == 0, "num_heads must be divisible by TP world size"
         self.num_heads = self.global_num_heads // self.tp_world_size
 
         self.global_num_key_value_heads = config.num_key_value_heads
