@@ -64,10 +64,7 @@ torch.distributed.barrier()
 with torch.device("meta"):
     # try sharding vocab matrices if really struggling for memory
     model_tp = GPTDolomiteForCausalLM_TP(
-        config,
-        tensor_parallel_vocab_matrix=False,
-        tensor_parallel_position_embedding_matrix=False,
-        attn_implementation=args.attention_implementation,
+        config, tensor_parallel_embeddings=False, attn_implementation=args.attention_implementation
     )
 
     if torch.distributed.get_rank() == 0:

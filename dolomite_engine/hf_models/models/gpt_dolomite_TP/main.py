@@ -12,23 +12,12 @@ from .base import GPTDolomiteModel_TP
 
 
 class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
-    def __init__(
-        self,
-        config: GPTDolomiteConfig,
-        tensor_parallel_vocab_matrix: bool = False,
-        tensor_parallel_position_embedding_matrix: bool = False,
-        **kwargs,
-    ) -> None:
+    def __init__(self, config: GPTDolomiteConfig, tensor_parallel_embeddings: bool = False, **kwargs) -> None:
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 
-        self.tensor_parallel_vocab_matrix = tensor_parallel_vocab_matrix
+        self.tensor_parallel_embeddings = tensor_parallel_embeddings
 
-        self.transformer = GPTDolomiteModel_TP(
-            config,
-            tensor_parallel_vocab_matrix=tensor_parallel_vocab_matrix,
-            tensor_parallel_position_embedding_matrix=tensor_parallel_position_embedding_matrix,
-            **kwargs,
-        )
+        self.transformer = GPTDolomiteModel_TP(config, tensor_parallel_embeddings=tensor_parallel_embeddings, **kwargs)
 
         # we don't split lm_head for now
         # TODO investigate how to split this for HF generate API
@@ -37,8 +26,10 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         self.m_width = config.m_width
 
         # Initialize weights and apply final processing
-        if not self.tensor_parallel_vocab_matrix:
+        if not self.tensor_parallel_embeddings:
             self.tie_weights()
+
+        self.post_init()
 
     def forward(
         self,
@@ -80,7 +71,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
     ) -> None:
         self.transformer.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "transformer.")
 
-        if self.tensor_parallel_vocab_matrix:
+        if self.tensor_parallel_embeddings:
             state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "transformer.wte.weight")}
             self.lm_head.load_state_dict(state_dict)
         else:
@@ -91,18 +82,13 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         self,
         model_name: str,
         torch_dtype: torch.dtype = torch.float32,
-        tensor_parallel_vocab_matrix: bool = False,
-        tensor_parallel_position_embedding_matrix: bool = False,
+        tensor_parallel_embeddings: bool = False,
     ) -> GPTDolomiteForCausalLM_TP:
         # use dummy tensors to avoid initializing model here
         with torch.device("meta"):
             config = GPTDolomiteConfig.from_pretrained(model_name)
             # try sharding vocab matrices if really struggling for memory
-            model = GPTDolomiteForCausalLM_TP(
-                config,
-                tensor_parallel_vocab_matrix=tensor_parallel_vocab_matrix,
-                tensor_parallel_position_embedding_matrix=tensor_parallel_position_embedding_matrix,
-            )
+            model = GPTDolomiteForCausalLM_TP(config, tensor_parallel_embeddings=tensor_parallel_embeddings)
 
             # set dtype
             model = model.to(dtype=torch_dtype)

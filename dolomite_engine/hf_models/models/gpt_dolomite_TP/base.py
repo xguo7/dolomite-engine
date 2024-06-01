@@ -13,17 +13,10 @@ from .layer import GPTDolomiteBlock_TP
 
 
 class GPTDolomiteModel_TP(GPTDolomiteModel):
-    def __init__(
-        self,
-        config: GPTDolomiteConfig,
-        tensor_parallel_vocab_matrix: bool = False,
-        tensor_parallel_position_embedding_matrix: bool = False,
-        **kwargs,
-    ) -> None:
+    def __init__(self, config: GPTDolomiteConfig, tensor_parallel_embeddings: bool = False, **kwargs) -> None:
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 
-        self.tensor_parallel_vocab_matrix = tensor_parallel_vocab_matrix
-        self.tensor_parallel_position_embedding_matrix = tensor_parallel_position_embedding_matrix
+        self.tensor_parallel_embeddings = tensor_parallel_embeddings
 
         self.attention_head_type = AttentionHeadType(config.attention_head_type)
         self.embed_dim = config.hidden_size
@@ -36,7 +29,7 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
 
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        if self.tensor_parallel_vocab_matrix:
+        if self.tensor_parallel_embeddings:
             self.wte = Embedding_TP(config.vocab_size, self.embed_dim)
         else:
             self.wte = ParameterizedEmbedding(config.vocab_size, self.embed_dim)
@@ -163,7 +156,7 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         max_position_embeddings = self.config.max_position_embeddings
 
         if self.position_embedding_type == PositionEmbeddingType.learned_absolute:
-            if self.tensor_parallel_position_embedding_matrix:
+            if self.tensor_parallel_embeddings:
                 self.wpe = Embedding_TP(max_position_embeddings, self.embed_dim)
             else:
                 self.wpe = ParameterizedEmbedding(max_position_embeddings, self.embed_dim)
