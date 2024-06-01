@@ -152,11 +152,7 @@ class GPTDolomiteForCausalLM(GPTDolomitePreTrainedModel):
         )
         hidden_states = transformer_outputs[0]
 
-        lm_logits = (
-            F.linear(hidden_states, self.transformer.wte.weight)
-            if self._tied_word_embeddings
-            else self.lm_head(hidden_states)
-        )
+        lm_logits = self.get_lm_logits(hidden_states)
 
         if self.m_width is not None:
             lm_logits = lm_logits / self.m_width
@@ -173,4 +169,11 @@ class GPTDolomiteForCausalLM(GPTDolomitePreTrainedModel):
             past_key_values=transformer_outputs.past_key_values,
             hidden_states=transformer_outputs.hidden_states,
             attentions=transformer_outputs.attentions,
+        )
+
+    def get_lm_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return (
+            F.linear(hidden_states, self.transformer.wte.weight)
+            if self._tied_word_embeddings
+            else self.lm_head(hidden_states)
         )

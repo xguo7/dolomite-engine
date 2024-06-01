@@ -99,11 +99,7 @@ class MoEDolomiteForCausalLM(MoEDolomitePreTrainedModel, GPTDolomiteForCausalLM)
         )
         hidden_states = transformer_outputs[0]
 
-        lm_logits = (
-            F.linear(hidden_states, self.transformer.wte.weight)
-            if self._tied_word_embeddings
-            else self.lm_head(hidden_states)
-        )
+        lm_logits = self.get_lm_logits(hidden_states)
 
         if self.m_width is not None:
             lm_logits = lm_logits / self.m_width
