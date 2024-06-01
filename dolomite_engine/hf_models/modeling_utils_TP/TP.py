@@ -2,10 +2,9 @@ from typing import Tuple
 
 import torch
 import torch.distributed
-import torch.nn as nn
 
-from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
-from ..modeling_utils import ParameterizedLinear
+from ...utils import ProcessGroupManager
+from ..utils import divide_if_divisible
 
 
 class CopyToTensorParallelRegion(torch.autograd.Function):
@@ -17,7 +16,7 @@ class CopyToTensorParallelRegion(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
-        return tensor_parallel_all_reduce(grad_output)
+        return _tensor_parallel_all_reduce(grad_output)
 
 
 class ReduceFromTensorParallelRegion(torch.autograd.Function):
@@ -25,14 +24,26 @@ class ReduceFromTensorParallelRegion(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input: torch.Tensor) -> torch.Tensor:
-        return tensor_parallel_all_reduce(input)
+        return _tensor_parallel_all_reduce(input)
 
     @staticmethod
     def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
         return grad_output
 
 
-def tensor_parallel_all_reduce(input: torch.Tensor) -> torch.Tensor:
+class GatherFromTensorParallelRegion(torch.autograd.Function):
+    """Gather the input from model parallel region and concatinate."""
+
+    @staticmethod
+    def forward(ctx, input_):
+        return _gather_along_last_dim(input_)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return _split_along_last_dim(grad_output)
+
+
+def _tensor_parallel_all_reduce(input: torch.Tensor) -> torch.Tensor:
     """All-reduce the input tensor across model parallel group."""
 
     # Bypass the function if we are using only 1 GPU.
@@ -43,6 +54,47 @@ def tensor_parallel_all_reduce(input: torch.Tensor) -> torch.Tensor:
     torch.distributed.all_reduce(input, group=ProcessGroupManager.get_tensor_parallel_group())
 
     return input
+
+
+def _gather_along_last_dim(input: torch.Tensor) -> torch.Tensor:
+    """Gather tensors and concatinate along the last dimension."""
+
+    world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
+    # Bypass the function if we are using only 1 GPU.
+    if world_size == 1:
+        return input
+
+    dim_size = list(input.size())
+    dim_size[0] = dim_size[0] * world_size
+
+    output = torch.empty(dim_size, dtype=input.dtype, device=torch.cuda.current_device())
+    torch.distributed.all_gather_into_tensor(
+        output, input.contiguous(), group=ProcessGroupManager.get_tensor_parallel_group()
+    )
+    output = output.chunk(world_size)
+    output = torch.cat(output, dim=-1).contiguous()
+
+    return output
+
+
+def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
+    """Split the tensor along its last dimension and keep the corresponding slice."""
+
+    world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
+    # Bypass the function if we are using only 1 GPU.
+    if world_size == 1:
+        return input
+
+    # Split along last dimension.
+    input_list = split_tensor_along_last_dim(input, world_size)
+
+    # Note: torch.split does not create contiguous tensors by default.
+    rank = ProcessGroupManager.get_tensor_parallel_rank()
+    output = input_list[rank].contiguous()
+
+    return output
 
 
 def tensor_parallel_all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
@@ -80,10 +132,11 @@ def tensor_parallel_split_safetensor_slice(slice, dim: int, start_end: Tuple[int
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
     if start_end is None:
-        assert (
-            shape[dim] % tp_world_size == 0
-        ), f"split dimension ({dim}) is not divisible by tensor parallel world size ({tp_world_size})"
-        stride = shape[dim] // tp_world_size
+        stride = divide_if_divisible(
+            shape[dim],
+            tp_world_size,
+            f"split dimension ({dim}) is not divisible by tensor parallel world size ({tp_world_size})",
+        )
         start_index = tp_rank * stride
         end_index = (tp_rank + 1) * stride
     else:

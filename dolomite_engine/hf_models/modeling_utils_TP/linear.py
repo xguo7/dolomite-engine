@@ -4,6 +4,7 @@ import torch.nn as nn
 
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
+from ..utils import divide_if_divisible
 from .TP import (
     CopyToTensorParallelRegion,
     ReduceFromTensorParallelRegion,
@@ -24,11 +25,11 @@ class ColumnParallelLinear(ParameterizedLinear):
     ) -> None:
         tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        assert (
-            out_features % tp_world_size == 0
-        ), f"`out_features` ({out_features}) must be divisible by `tensor_parallel_world_size` ({tp_world_size})"
-
-        self.out_features_per_device = out_features // tp_world_size
+        self.out_features_per_device = divide_if_divisible(
+            out_features,
+            tp_world_size,
+            f"`out_features` ({out_features}) must be divisible by `tensor_parallel_world_size` ({tp_world_size})",
+        )
 
         super().__init__(
             in_features=in_features,
@@ -80,12 +81,11 @@ class RowParallelLinear(ParameterizedLinear):
     ) -> None:
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        assert (
-            in_features % self.tp_world_size == 0
-        ), f"`in_features` ({in_features}) must be divisible by `tensor_parallel_world_size` ({self.tp_world_size})"
-
-        self.in_features_per_device = in_features // self.tp_world_size
-        self.out_features = out_features
+        self.in_features_per_device = divide_if_divisible(
+            in_features,
+            self.tp_world_size,
+            f"`in_features` ({in_features}) must be divisible by `tensor_parallel_world_size` ({self.tp_world_size})",
+        )
 
         super().__init__(
             in_features=self.in_features_per_device,

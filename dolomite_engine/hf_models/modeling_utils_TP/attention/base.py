@@ -7,6 +7,7 @@ from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ...config import CommonConfig
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import Attention, ParameterizedLinear
+from ...utils import divide_if_divisible
 from ..dropout import Dropout_TP
 from ..linear import ColumnParallelLinear, RowParallelLinear
 from ..TP import CopyToTensorParallelRegion
@@ -29,15 +30,21 @@ class Attention_TP(Attention):
         self.n_layer = config.n_layer
         self.init_method = config.init_method
 
-        assert (
-            self.global_hidden_size % self.global_num_heads == 0
-        ), f"`embed_dim` ({self.global_hidden_size}) must be divisible by `num_heads` ({self.global_num_heads})"
-        self.hidden_size = self.global_hidden_size // self.tp_world_size
+        divide_if_divisible(
+            self.global_hidden_size,
+            self.global_num_heads,
+            f"`embed_dim` ({self.global_hidden_size}) must be divisible by `num_heads` ({self.global_num_heads})",
+        )
 
-        assert self.global_num_heads % self.tp_world_size == 0, "num_heads must be divisible by TP world size"
-        self.num_heads = self.global_num_heads // self.tp_world_size
+        self.hidden_size = divide_if_divisible(
+            self.global_hidden_size, self.tp_world_size, "hidden_size should be divisible by TP world size"
+        )
 
-        self.head_dim = self.hidden_size // self.num_heads
+        self.num_heads = divide_if_divisible(
+            self.global_num_heads, self.tp_world_size, "num_heads must be divisible by TP world size"
+        )
+
+        self.head_dim = divide_if_divisible(self.hidden_size, self.num_heads, "")
         self.attention_head_type = AttentionHeadType(config.attention_head_type)
 
         self.position_embedding_type = PositionEmbeddingType(config.position_embedding_type)
@@ -75,17 +82,17 @@ class Attention_TP(Attention):
                 "you want to use 1 head for keys and values"
             )
 
-            assert self.global_num_heads % self.global_num_key_value_heads == 0, (
-                f"`num_heads` ({self.global_num_heads}) should be a multiple of `num_key_value_heads` "
-                f"({self.global_num_key_value_heads})"
+            divide_if_divisible(
+                self.global_num_heads,
+                self.global_num_key_value_heads,
+                f"`num_heads` ({self.global_num_heads}) should be a multiple of `num_key_value_heads` ({self.global_num_key_value_heads})",
             )
 
-            assert self.global_num_key_value_heads % self.tp_world_size == 0, (
-                f"`num_key_value_heads` ({self.global_num_key_value_heads}) must be divisible by `tensor_parallel_world_size` "
-                f"({self.tp_world_size})"
+            self.num_key_value_heads = divide_if_divisible(
+                self.global_num_key_value_heads,
+                self.tp_world_size,
+                f"`num_key_value_heads` ({self.global_num_key_value_heads}) must be divisible by `tensor_parallel_world_size` ({self.tp_world_size})",
             )
-
-            self.num_key_value_heads = self.global_num_key_value_heads // self.tp_world_size
 
             self.c_attn = ColumnParallelLinear(
                 self.global_hidden_size,
@@ -103,6 +110,8 @@ class Attention_TP(Attention):
             self.num_key_value_heads = 1
 
             self.c_attn = _MQA_QueryKeyValueProjection(self.global_hidden_size, self.head_dim, add_bias=self.add_bias)
+        else:
+            raise ValueError(f"unexpected attention_head_type ({self.attention_head_type})")
 
         self.c_proj = RowParallelLinear(self.global_hidden_size, self.global_hidden_size, bias=self.add_bias)
 

@@ -17,3 +17,19 @@ def flatten_and_convert_to_tensors(x: List[int], device: torch.device) -> torch.
         y.extend(sequence)
 
     return torch.tensor(y, device=device)
+
+
+def divide_if_divisible(dividend: int, divisor: int, msg: str) -> int:
+    """divide if divisible else raise an error
+
+    Args:
+        dividend (int): dividend
+        divisor (int): divisor
+        msg (str): error message
+
+    Returns:
+        int: result
+    """
+
+    assert dividend % divisor == 0, msg
+    return dividend // divisor
