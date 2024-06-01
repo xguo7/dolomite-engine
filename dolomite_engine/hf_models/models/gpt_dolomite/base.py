@@ -73,7 +73,7 @@ class GPTDolomitePreTrainedModel(PreTrainedModel):
         self.upcast_logits_for_loss = config.upcast_logits_for_loss
 
     def _init_weights(self, module: nn.Module) -> None:
-        if isinstance(module, (ParameterizedEmbedding, ParameterizedLinear, nn.LayerNorm, RMSNorm, Alibi, RoPE)):
+        if isinstance(module, (nn.Embedding, nn.Linear, nn.LayerNorm, RMSNorm, Alibi, RoPE)):
             module.reset_parameters()
 
     def get_autoregressive_language_modeling_loss(
