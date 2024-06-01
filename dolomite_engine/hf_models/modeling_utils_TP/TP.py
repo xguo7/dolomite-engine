@@ -35,33 +35,26 @@ class GatherFromTensorParallelRegion(torch.autograd.Function):
     """Gather the input from model parallel region and concatinate."""
 
     @staticmethod
-    def forward(ctx, input_):
-        return _gather_along_last_dim(input_)
+    def forward(ctx, input: torch.Tensor) -> torch.Tensor:
+        return _gather_along_last_dim(input)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
         return _split_along_last_dim(grad_output)
 
 
 def _tensor_parallel_all_reduce(input: torch.Tensor) -> torch.Tensor:
-    """All-reduce the input tensor across model parallel group."""
-
-    # Bypass the function if we are using only 1 GPU.
     if ProcessGroupManager.get_tensor_parallel_world_size() == 1:
         return input
 
-    # All-reduce.
     torch.distributed.all_reduce(input, group=ProcessGroupManager.get_tensor_parallel_group())
 
     return input
 
 
 def _gather_along_last_dim(input: torch.Tensor) -> torch.Tensor:
-    """Gather tensors and concatinate along the last dimension."""
-
     world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-    # Bypass the function if we are using only 1 GPU.
     if world_size == 1:
         return input
 
@@ -69,28 +62,22 @@ def _gather_along_last_dim(input: torch.Tensor) -> torch.Tensor:
     dim_size[0] = dim_size[0] * world_size
 
     output = torch.empty(dim_size, dtype=input.dtype, device=torch.cuda.current_device())
-    torch.distributed.all_gather_into_tensor(
-        output, input.contiguous(), group=ProcessGroupManager.get_tensor_parallel_group()
-    )
+    torch.distributed.all_gather_into_tensor(output, input, group=ProcessGroupManager.get_tensor_parallel_group())
+
     output = output.chunk(world_size)
-    output = torch.cat(output, dim=-1).contiguous()
+    output = torch.cat(output, dim=-1)
 
     return output
 
 
 def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
-    """Split the tensor along its last dimension and keep the corresponding slice."""
-
     world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-    # Bypass the function if we are using only 1 GPU.
     if world_size == 1:
         return input
 
-    # Split along last dimension.
     input_list = split_tensor_along_last_dim(input, world_size)
 
-    # Note: torch.split does not create contiguous tensors by default.
     rank = ProcessGroupManager.get_tensor_parallel_rank()
     output = input_list[rank].contiguous()
 
@@ -98,11 +85,8 @@ def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
 
 
 def tensor_parallel_all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
-    """All-reduce the input tensor across model parallel group."""
-
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-    # Bypass the function if we are using only 1 GPU.
     if tp_world_size == 1:
         return input
 
@@ -113,7 +97,6 @@ def tensor_parallel_all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
     else:
         raise ValueError(f"unexpected dim={dim}")
 
-    # All-reduce.
     torch.distributed.all_gather_into_tensor(
         torch.empty(*shape, dtype=input.dtype, device=torch.cuda.current_device()),
         input,
