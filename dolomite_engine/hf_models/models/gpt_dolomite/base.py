@@ -8,15 +8,7 @@ from transformers.modeling_outputs import BaseModelOutputWithPast
 
 from ...defaults import DEFAULT_NORMALIZATION_IMPLEMENTATION
 from ...enums import AttentionHeadType, PositionEmbeddingType
-from ...modeling_utils import (
-    Alibi,
-    ParameterizedEmbedding,
-    ParameterizedLinear,
-    RMSNorm,
-    RoPE,
-    YaRNScaledRoPE,
-    get_normalization_function,
-)
+from ...modeling_utils import Alibi, ParameterizedEmbedding, RMSNorm, RoPE, YaRNScaledRoPE, get_normalization_function
 from ...utils import check_list_type, flatten_and_convert_to_tensors
 from .config import GPTDolomiteConfig
 from .layer import GPTDolomiteBlock
