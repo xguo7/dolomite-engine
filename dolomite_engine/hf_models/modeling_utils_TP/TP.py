@@ -76,10 +76,8 @@ def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
     if world_size == 1:
         return input
 
-    input_list = split_tensor_along_last_dim(input, world_size)
-
-    rank = ProcessGroupManager.get_tensor_parallel_rank()
-    output = input_list[rank].contiguous()
+    input_list = input.chunk(world_size, dim=-1)
+    output = input_list[ProcessGroupManager.get_tensor_parallel_rank()]
 
     return output
 

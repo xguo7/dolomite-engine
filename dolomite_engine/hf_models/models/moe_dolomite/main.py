@@ -25,6 +25,7 @@ class MoEDolomiteForCausalLM(MoEDolomitePreTrainedModel, GPTDolomiteForCausalLM)
         self.num_experts = config.num_experts
         self.num_experts_per_tok = config.num_experts_per_tok
         self.m_width = config.m_width
+        self.upcast_logits_for_loss = config.upcast_logits_for_loss
 
         # Initialize weights and apply final processing
         self.post_init()

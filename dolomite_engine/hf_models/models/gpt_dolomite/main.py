@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DynamicCache
 from transformers.modeling_outputs import CausalLMOutputWithPast
@@ -23,6 +24,7 @@ class GPTDolomiteForCausalLM(GPTDolomitePreTrainedModel):
             )
 
         self.m_width = config.m_width
+        self.upcast_logits_for_loss = config.upcast_logits_for_loss
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -166,3 +168,29 @@ class GPTDolomiteForCausalLM(GPTDolomitePreTrainedModel):
             if self._tied_word_embeddings
             else self.lm_head(hidden_states)
         )
+
+    def get_autoregressive_language_modeling_loss(
+        self, lm_logits: torch.Tensor, labels: torch.Tensor, cu_seqlens: torch.Tensor
+    ) -> torch.Tensor:
+        if labels is None:
+            return None
+
+        if self._use_padding_free_transformer:
+            shift_logits = lm_logits[:-1, :]
+            shift_labels = labels[1:].to(shift_logits.device)
+
+            # this is needed so that the last token of current example doesn't predict first token of next example
+            drop_loss_positions = cu_seqlens[1:-1] - 1
+            shift_labels[drop_loss_positions] = -100
+        else:
+            # Shift so that tokens < n predict n
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous().to(shift_logits.device)
+
+        # Flatten the tokens
+        loss_fct = nn.CrossEntropyLoss()
+        if self.upcast_logits_for_loss:
+            shift_logits = shift_logits.float()
+        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+        return loss

@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import List, Tuple, Union
 
 import torch
-import torch.nn.functional as F
+import torch.nn as nn
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ....utils import SafeTensorsWeightsManager
 from ...modeling_utils import ParameterizedLinear
-from ...modeling_utils_TP import CopyToTensorParallelRegion
+from ...modeling_utils_TP import CopyToTensorParallelRegion, GatherFromTensorParallelRegion
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteForCausalLM, GPTDolomitePreTrainedModel
 from .base import GPTDolomiteModel_TP
 
@@ -34,10 +34,6 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
                 bias=False,
                 std=config.initializer_range,
             )
-
-        # Initialize weights and apply final processing
-        if not self.tensor_parallel_embeddings:
-            self.tie_weights()
 
         self.post_init()
 
@@ -82,8 +78,8 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         if output_parallel_lm_logits:
             assert self.tensor_parallel_embeddings
         else:
-            # FIXME
-            lm_logits = 1
+            if self.tensor_parallel_embeddings:
+                lm_logits = GatherFromTensorParallelRegion.apply(lm_logits)
 
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]
@@ -99,11 +95,32 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
 
     def get_lm_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
         if self.tensor_parallel_embeddings:
-            lm_logits = CopyToTensorParallelRegion.apply(lm_logits)
+            hidden_states = CopyToTensorParallelRegion.apply(hidden_states)
 
         lm_logits = super().get_lm_logits(hidden_states)
 
         return lm_logits
+
+    def get_autoregressive_language_modeling_loss(
+        self, lm_logits: torch.Tensor, labels: torch.Tensor, cu_seqlens: torch.Tensor
+    ) -> torch.Tensor:
+        if labels is None:
+            return None
+
+        # Shift so that tokens < n predict n
+        shift_logits = lm_logits[..., :-1, :].contiguous()
+        shift_labels = labels[..., 1:].contiguous().to(shift_logits.device)
+
+        if self.tensor_parallel_embeddings:
+            pass
+        else:
+            # Flatten the tokens
+            loss_fct = nn.CrossEntropyLoss()
+            if self.upcast_logits_for_loss:
+                shift_logits = shift_logits.float()
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+        return loss
 
     def load_from_safetensors_weights_manager(
         self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""

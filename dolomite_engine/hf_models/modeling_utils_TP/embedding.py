@@ -1,27 +1,23 @@
 import math
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
+from ..utils import divide_if_divisible
 from .TP import ReduceFromTensorParallelRegion
 
 
 class Embedding_TP(nn.Embedding):
-    def __init__(self, num_embeddings: int, embedding_dim: int, make_vocab_size_divisible_by: int = 64) -> None:
-        tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+    def __init__(self, num_embeddings: int, embedding_dim: int) -> None:
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        assert make_vocab_size_divisible_by % self.tp_world_size == 0
+        self.vocab_start_index, self.vocab_end_index, num_embeddings_per_tp_rank = get_tensor_parallel_vocab_info(
+            vocab_size=num_embeddings
+        )
 
-        embedding_matrix_size_per_tp_rank = (
-            make_vocab_size_divisible_by * math.ceil(num_embeddings // make_vocab_size_divisible_by)
-        ) // self.tp_world_size
-
-        self.vocab_start_index = tp_rank * embedding_matrix_size_per_tp_rank
-        self.vocab_end_index = min((tp_rank + 1) * embedding_matrix_size_per_tp_rank, num_embeddings)
-
-        super().__init__(embedding_matrix_size_per_tp_rank, embedding_dim)
+        super().__init__(num_embeddings_per_tp_rank, embedding_dim)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.tp_world_size > 1:
@@ -57,3 +53,22 @@ class Embedding_TP(nn.Embedding):
             )
 
         self.load_state_dict({"weight": weight})
+
+
+def get_tensor_parallel_vocab_info(
+    vocab_size: int, vocab_size_per_tensor_parallel_rank: int = None, make_vocab_size_divisible_by: int = 64
+) -> Tuple[int, int]:
+    tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+    tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
+    if vocab_size_per_tensor_parallel_rank is None:
+        divide_if_divisible(make_vocab_size_divisible_by, tp_world_size, "")
+
+        vocab_size_per_tensor_parallel_rank = (
+            make_vocab_size_divisible_by * math.ceil(vocab_size // make_vocab_size_divisible_by)
+        ) // tp_world_size
+
+    vocab_start_index = tp_rank * vocab_size_per_tensor_parallel_rank
+    vocab_end_index = min((tp_rank + 1) * vocab_size_per_tensor_parallel_rank, vocab_size)
+
+    return vocab_start_index, vocab_end_index, vocab_size_per_tensor_parallel_rank

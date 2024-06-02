@@ -1,7 +1,6 @@
 from typing import List, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from transformers import DynamicCache
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
@@ -26,6 +25,7 @@ class DenseMoEForCausalLM(DenseMoEPreTrainedModel, GPTDolomiteForCausalLM):
         self.num_experts = config.num_experts
 
         self.m_width = config.m_width
+        self.upcast_logits_for_loss = config.upcast_logits_for_loss
 
         # Initialize weights and apply final processing
         self.post_init()
