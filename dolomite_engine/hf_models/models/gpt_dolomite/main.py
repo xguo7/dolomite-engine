@@ -187,10 +187,9 @@ class GPTDolomiteForCausalLM(GPTDolomitePreTrainedModel):
             shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous().to(shift_logits.device)
 
-        # Flatten the tokens
-        loss_fct = nn.CrossEntropyLoss()
         if self.upcast_logits_for_loss:
             shift_logits = shift_logits.float()
-        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+        loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         return loss

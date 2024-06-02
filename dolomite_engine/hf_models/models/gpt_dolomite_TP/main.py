@@ -3,12 +3,12 @@ from __future__ import annotations
 from typing import List, Tuple, Union
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ....utils import SafeTensorsWeightsManager
 from ...modeling_utils import ParameterizedLinear
-from ...modeling_utils_TP import CopyToTensorParallelRegion, GatherFromTensorParallelRegion
+from ...modeling_utils_TP import CopyToTensorParallelRegion, GatherFromTensorParallelRegion, TensorParallelCrossEntropy
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteForCausalLM, GPTDolomitePreTrainedModel
 from .base import GPTDolomiteModel_TP
 
@@ -112,13 +112,12 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         shift_labels = labels[..., 1:].contiguous().to(shift_logits.device)
 
         if self.tensor_parallel_embeddings:
-            pass
+            loss = TensorParallelCrossEntropy.apply(shift_logits, shift_labels)
         else:
-            # Flatten the tokens
-            loss_fct = nn.CrossEntropyLoss()
             if self.upcast_logits_for_loss:
                 shift_logits = shift_logits.float()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+            loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         return loss
 
