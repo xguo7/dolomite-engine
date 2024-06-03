@@ -19,6 +19,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 
         self.tensor_parallel_embeddings = tensor_parallel_embeddings
+        self.vocab_size = config.vocab_size
 
         self.transformer = GPTDolomiteModel_TP(config, tensor_parallel_embeddings=tensor_parallel_embeddings, **kwargs)
 
@@ -74,7 +75,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         if self.m_width is not None:
             lm_logits = lm_logits / self.m_width
 
-        loss = self.get_autoregressive_language_modeling_loss(lm_logits, labels, None)
+        loss = self.get_autoregressive_language_modeling_loss(lm_logits, labels)
 
         if output_parallel_lm_logits:
             assert self.tensor_parallel_embeddings
@@ -102,9 +103,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
 
         return lm_logits
 
-    def get_autoregressive_language_modeling_loss(
-        self, lm_logits: torch.Tensor, labels: torch.Tensor, cu_seqlens: torch.Tensor
-    ) -> torch.Tensor:
+    def get_autoregressive_language_modeling_loss(self, lm_logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         if labels is None:
             return None
 
@@ -113,7 +112,9 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         shift_labels = labels[..., 1:].contiguous().to(shift_logits.device)
 
         if self.tensor_parallel_embeddings:
-            loss = TensorParallelCrossEntropy.apply(shift_logits, shift_labels)
+            loss = TensorParallelCrossEntropy.apply(
+                shift_logits, shift_labels, self.vocab_size, self.upcast_logits_for_loss
+            )
         else:
             if self.upcast_logits_for_loss:
                 shift_logits = shift_logits.float()

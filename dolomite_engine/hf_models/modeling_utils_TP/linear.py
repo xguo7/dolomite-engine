@@ -5,12 +5,7 @@ import torch.nn as nn
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
 from ..utils import divide_if_divisible
-from .TP import (
-    CopyToTensorParallelRegion,
-    ReduceFromTensorParallelRegion,
-    tensor_parallel_all_gather,
-    tensor_parallel_split_safetensor_slice,
-)
+from .TP import CopyToTensorParallelRegion, ReduceFromTensorParallelRegion, tensor_parallel_split_safetensor_slice
 
 
 class ColumnParallelLinear(ParameterizedLinear):
@@ -63,10 +58,6 @@ class ColumnParallelLinear(ParameterizedLinear):
         return "in_features={}, out_features_per_device={}, bias={}".format(
             self.in_features, self.out_features_per_device, self.bias is not None
         )
-
-    def _save_to_state_dict(self, destination, prefix, keep_vars):
-        destination[prefix + "weight"] = tensor_parallel_all_gather(self.weight, dim=0)
-        destination[prefix + "bias"] = tensor_parallel_all_gather(self.bias, dim=0)
 
 
 class RowParallelLinear(ParameterizedLinear):
@@ -123,7 +114,3 @@ class RowParallelLinear(ParameterizedLinear):
         return "in_features_per_device={}, out_features={}, bias={}".format(
             self.in_features_per_device, self.out_features, self.tp_bias is not None
         )
-
-    def _save_to_state_dict(self, destination, prefix, keep_vars):
-        destination[prefix + "weight"] = tensor_parallel_all_gather(self.weight, dim=1)
-        destination[prefix + "bias"] = self.bias
