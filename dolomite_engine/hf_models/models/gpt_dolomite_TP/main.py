@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import List, Tuple, Union
+from typing import Tuple, Union
 
 import torch
 import torch.nn.functional as F
+from transformers import DynamicCache
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ....utils import SafeTensorsWeightsManager
@@ -39,11 +40,11 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
 
     def forward(
         self,
-        input_ids: Union[torch.Tensor, List[int]] = None,
-        past_key_values: Tuple[Tuple[torch.Tensor]] = None,
+        input_ids: torch.Tensor = None,
+        past_key_values: DynamicCache = None,
         attention_mask: torch.Tensor = None,
         token_type_ids: torch.Tensor = None,
-        position_ids: Union[torch.Tensor, List[int]] = None,
+        position_ids: torch.Tensor = None,
         inputs_embeds: torch.Tensor = None,
         labels: torch.Tensor = None,
         use_cache: bool = None,
