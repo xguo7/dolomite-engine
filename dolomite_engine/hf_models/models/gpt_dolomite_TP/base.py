@@ -116,10 +116,6 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
 
         alibi_bias = self.alibi(attention_mask, batch_size, key_length, device, dtype)
 
-        # ==========================================================================================
-        # alibi_bias -> (batch_size, num_heads, key_length)
-        # ==========================================================================================
-
         if self._use_eager_attention:
             if self.attention_head_type == AttentionHeadType.mqa:
                 if query_length != 1:
@@ -139,16 +135,6 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
                 alibi_bias = alibi_bias.expand(-1, -1, query_length, -1)
         elif self._use_flash_attention_2:
             raise ValueError()
-
-        # ==========================================================================================
-        # eager:
-        #     AttentionHeadType.mqa:
-        #         alibi_bias -> (batch_size, query_length * num_heads, key_length)
-        #     AttentionHeadType.mha:
-        #         alibi_bias -> (batch_size * num_heads, query_length, key_length)
-        # sdpa:
-        #     alibi_bias -> (batch_size, num_heads, query_length, key_length)
-        # ==========================================================================================
 
         return alibi_bias
 
