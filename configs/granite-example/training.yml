@@ -33,10 +33,12 @@ save_args:
 
 training_parameters:
   # we will use 2 GPUs so our total samples seen during training is:
-  # num_training_steps * micro_batch_size * gradient_accumulation_steps * data_parallel_size (num_GPUs since we only use datat parallelism for now) = 80000 (4 epochs since the dataset we are using here has 20k samples exactly)
-  num_training_steps: 10000
+  # num_training_steps * micro_batch_size * gradient_accumulation_steps * data_parallel_size
+  # = 20000 (1 epoch since the dataset we are using here has 20k samples exactly)
+  # note: data_parallel_size = num_GPUs
+  num_training_steps: 5000
   eval_during_training: false
-  micro_batch_size: 4
+  micro_batch_size: 2
   gradient_accumulation_steps: 1
   gradient_clipping: 1
 
