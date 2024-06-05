@@ -1,5 +1,5 @@
 datasets:
-  - class_name: JSONLinesDataset
+  - class_name: HuggingFaceDataset
     class_args:
       num_examples: 100
     data_name: code_instruct_mix_super

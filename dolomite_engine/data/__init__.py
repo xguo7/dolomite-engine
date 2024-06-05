@@ -14,7 +14,6 @@ from .dataloader import DispatchingDataLoader, ResumableDataLoader
 from .debug import DebugDataset
 from .huggingface import HuggingFaceDataset
 from .instruction_tuning import AlpacaDataset, DollyDataset, SlimOrcaDataset
-from .jsonlines import JSONLinesDataset
 from .megatron import get_megatron_gpt_dataloaders
 from .sampler import BlendedDistributedSampler
 from .sst2 import SST2Dataset
@@ -26,7 +25,6 @@ _DATASETS_LIST = {
     "DebugDataset": DebugDataset,
     "DollyDataset": DollyDataset,
     "HuggingFaceDataset": HuggingFaceDataset,
-    "JSONLinesDataset": JSONLinesDataset,
     "SlimOrcaDataset": SlimOrcaDataset,
     "SST2Dataset": SST2Dataset,
 }
