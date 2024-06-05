@@ -1,0 +1,47 @@
+datasets:
+  - class_name: GlaiveCodeAssistantDataset
+    data_name: glaive
+    data_sampling_ratio: 1
+    # adjust input and output tokens as needed
+    max_input_tokens: 4096
+    max_output_tokens: 4096
+
+model_args:
+  model_name: ibm-granite/granite-20b-code-base
+  model_class: AutoModelForCausalLM
+  attention_implementation: flash_attention_2
+  # enable efficient_initialization if you have low CPU memory
+  # (this only works with distributed_backend: deepspeed)
+  efficient_initialization: false
+
+tuning_args:
+  tuning_method: full_finetuning
+
+save_args:
+  save_path: checkpoints
+  save_interval: 1000
+
+training_parameters:
+  num_training_steps: 100
+  eval_interval: 50
+  micro_batch_size: 6
+
+optimizer_args:
+  class_name: TorchAdamW
+  class_args:
+    lr: 1e-5
+    weight_decay: 0.1
+    betas:
+      - 0.9
+      - 0.95
+    eps: 1e-10
+
+lr_scheduler_args:
+  lr_decay_style: cosine
+
+mixed_precision_args:
+  dtype: bf16
+
+distributed_args:
+  distributed_backend: torch
+  gradient_checkpointing_method: block
