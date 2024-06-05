@@ -3,9 +3,9 @@ load_args:
   iteration: 5000
 
 mixed_precision_args:
-  # if you want to save the exported model in fp32, if not specified,
-  # its taken from the training config in the saved checkpoint
-  dtype: fp32
+  # use this if you want to save the exported model in specific dtype,
+  # if not specified, its taken from the training config in the saved checkpoint
+  dtype: bf16
 
 # where to save the HF safetensors checkpoint
 export_path: exported_huggingface_model
