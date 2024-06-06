@@ -43,15 +43,16 @@ class HuggingFaceDataset(BaseDataset):
         self.examples = self.prepare_examples()
 
     def prepare_examples(self) -> List[dict]:
-        assert "path" in self.class_args, "path is a required argument requires additional class_args `data_path`"
+        assert "data_path" in self.class_args, "`data_path` is not specified"
 
-        path: str = self.class_args.get("path")
+        data_path: str = self.class_args.get("data_path")
         input_key: str = self.class_args.get("input_key", DatasetKeys.input.value)
         output_key: str = self.class_args.get("output_key", DatasetKeys.output.value)
 
-        examples = []
-        dataset = load_dataset(path)[self.split.value]
+        split = "validation" if self.split == DatasetSplit.val else self.split.value
+        dataset = load_dataset(data_path)[split]
 
+        examples = []
         for raw_example in dataset:
             input = self.construct_input_from_format(raw_example[input_key])
             output = self.construct_output_from_format(raw_example[output_key]) if self.mode == Mode.training else None

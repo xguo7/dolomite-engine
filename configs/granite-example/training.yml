@@ -2,7 +2,7 @@ datasets:
   - class_name: HuggingFaceDataset
     class_args:
       # edit accordingly
-      path: mayank-mishra/glaive-code-assisstant-v3-20k
+      data_path: mayank-mishra/glaive-code-assisstant-v3-20k
       input_key: question
       output_key: answer
     # just some metadata for internal use
