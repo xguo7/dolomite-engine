@@ -13,6 +13,9 @@ from .layer import GPTDolomiteBlock_TP
 
 
 class GPTDolomiteModel_TP(GPTDolomiteModel):
+
+    _no_split_modules = ["GPTDolomiteBlock_TP"]
+
     def __init__(self, config: GPTDolomiteConfig, tensor_parallel_embeddings: bool = False, **kwargs) -> None:
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 
