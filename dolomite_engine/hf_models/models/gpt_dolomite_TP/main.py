@@ -127,8 +127,9 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
         self.transformer.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "transformer.")
 
         if self.tensor_parallel_embeddings:
-            state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "transformer.wte.weight")}
-            self.lm_head.load_state_dict(state_dict)
+            if not self._tied_word_embeddings:
+                state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "transformer.wte.weight")}
+                self.lm_head.load_state_dict(state_dict)
         else:
             self.post_init()
 
