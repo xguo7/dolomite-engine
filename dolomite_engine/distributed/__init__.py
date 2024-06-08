@@ -57,6 +57,8 @@ def wrap_model_for_distributed_training(
     dtype = args.mixed_precision_args.dtype
     communication_dtype = args.distributed_args.communication_dtype
     fp8_backend = args.mixed_precision_args.fp8_backend
+    zero_hpz_partition_size = args.distributed_args.zero_hpz_partition_size
+    tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
     if dtype in ["fp16", "bf16"]:
         if communication_dtype != "fp32":
@@ -69,7 +71,7 @@ def wrap_model_for_distributed_training(
         convert_model_to_transformer_engine(model)
         dtype = "bf16"
 
-    assert args.distributed_args.zero_hpz_partition_size in [
+    assert zero_hpz_partition_size in [
         1,
         torch.cuda.device_count(),
     ], "currently we only support 1 and number of GPUs per node for HSDP"
@@ -79,6 +81,7 @@ def wrap_model_for_distributed_training(
     if args.distributed_args.distributed_backend == DistributedBackend.deepspeed:
         assert stage in [1, 2, 3]
         assert not torch_compile
+        assert tp_world_size == 1
 
         optimizer, lr_scheduler = get_optimizer_and_lr_scheduler(
             optimizer_class_name=args.optimizer_args.class_name,
@@ -121,13 +124,16 @@ def wrap_model_for_distributed_training(
         assert stage in [0, 2, 3]
         assert not cpu_offload
 
+        if tp_world_size > 1:
+            assert zero_hpz_partition_size == 1
+
         if stage == 0:
             sharding_strategy = ShardingStrategy.NO_SHARD
         else:
-            if args.distributed_args.zero_hpz_partition_size == 1:
+            if zero_hpz_partition_size == 1:
                 sharding_strategy = _STAGE_FULL_SHARDING_STRATEGY_MAP[stage]
             else:
-                assert args.distributed_args.zero_hpz_partition_size == 8
+                assert zero_hpz_partition_size == 8
 
                 sharding_strategy = _STAGE_HYBRID_SHARDING_STRATEGY_MAP[stage]
 
@@ -160,7 +166,7 @@ def wrap_model_for_distributed_training(
             # https://github.com/meta-llama/llama-recipes/blob/492455dc080f6c25f356e283e443be0cce86aaeb/src/llama_recipes/finetuning.py#L191
             sync_module_states=args.model_args.efficient_initialization,
             param_init_fn=_param_init,
-            device_mesh=ProcessGroupManager.get_data_parallel_mesh_for_hsdp(),
+            device_mesh=ProcessGroupManager.get_data_parallel_mesh(),
         )
 
         if args.distributed_args.gradient_checkpointing_method is not None:

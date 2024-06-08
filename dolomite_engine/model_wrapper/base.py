@@ -7,7 +7,7 @@ from transformers.integrations import HfDeepSpeedConfig
 
 from ..arguments import ExportArgs, InferenceArgs, TrainingArgs
 from ..enums import AttentionImplementation, DistributedBackend, GradientCheckpointingMethod, LossMask, Mode
-from ..hf_models import is_custom_model
+from ..hf_models import is_custom_model, is_tensor_parallel_compatible_model
 from ..hf_models.modeling_utils import is_glu
 from ..utils import ProcessGroupManager, log_rank_0, string_to_torch_dtype
 
@@ -38,6 +38,9 @@ class ModelWrapper(torch.nn.Module):
         self.attention_implementation = args.model_args.attention_implementation
         self.use_padding_free_transformer = args.model_args.use_padding_free_transformer
 
+        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
         self.distributed_backend = None
         self.stage = None
         if self.mode == Mode.training:
@@ -50,6 +53,11 @@ class ModelWrapper(torch.nn.Module):
         self.tie_word_embeddings = self.config.tie_word_embeddings
         self.is_encoder_decoder = self.config.is_encoder_decoder
 
+        if self.tp_rank > 1:
+            assert is_tensor_parallel_compatible_model(
+                self.model_class, self.config.model_type
+            ), "tensor parallel is not supported with this model"
+
         if self.use_padding_free_transformer:
             assert is_custom_model(
                 self.model_class, self.config.model_type
@@ -58,6 +66,8 @@ class ModelWrapper(torch.nn.Module):
             assert (
                 self.attention_implementation == AttentionImplementation.flash_attention_2
             ), "padding free transformer only works with flash attention"
+
+            assert self.tp_world_size == 1, "padding free transformer is not supported with tensor parallel"
 
         self._setup_tokenizer(args)
         self._setup_model(args)
@@ -213,11 +223,16 @@ class ModelWrapper(torch.nn.Module):
             model_kwargs["use_padding_free_transformer"] = True
 
         def _get_model(**extras):
-            return (
-                self.model_class.from_config(**model_kwargs, **extras)
-                if self.model_name is None
-                else self.model_class.from_pretrained(**model_kwargs, **extras)
-            )
+            if self.model_name is None:
+                if self.tp_world_size > 1:
+                    # avoid inferring the model class so use _from_config instead of from_config
+                    model = self.model_class._from_config(**model_kwargs, **extras)
+                else:
+                    model = self.model_class.from_config(**model_kwargs, **extras)
+            else:
+                model = self.model_class.from_pretrained(**model_kwargs, **extras)
+
+            return model
 
         if self.mode == Mode.training:
             if self.distributed_backend == DistributedBackend.deepspeed:
@@ -234,7 +249,7 @@ class ModelWrapper(torch.nn.Module):
                             self.model = _get_model()
                     else:
                         if is_custom_model(self.model_class, self.config.model_type):
-                            if ProcessGroupManager.get_global_rank() == 0:
+                            if ProcessGroupManager.get_data_parallel_rank() == 0:
                                 self.model = _get_model()
                             else:
                                 with torch.device("meta"):

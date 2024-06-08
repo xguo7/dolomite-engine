@@ -121,6 +121,9 @@ def get_dataloader(
 
     assert mode == Mode.training, "blended dataset is only supported in training mode"
 
+    if ProcessGroupManager.get_tensor_parallel_rank() != 0:
+        return
+
     if args.distributed_args.dispatching_dataloader:
         dataloader = _get_dispatching_dataloader(
             args, split=split, mode=mode, tokenizer=tokenizer, is_encoder_decoder=is_encoder_decoder
@@ -245,8 +248,8 @@ def _get_non_dispatching_dataloader(
     sampler = BlendedDistributedSampler(
         dataset=blended_dataset,
         data_sampling_ratios=[1] if len(datasets_list) == 1 else data_sampling_ratios,
-        num_replicas=ProcessGroupManager.get_world_size(),
-        rank=ProcessGroupManager.get_global_rank(),
+        num_replicas=ProcessGroupManager.get_data_parallel_world_size(),
+        rank=ProcessGroupManager.get_data_parallel_rank(),
         ignore_sampling_proportion_for_validation=args.training_parameters.ignore_sampling_proportion_for_validation,
         shuffle=split == DatasetSplit.train,
         seed=args.random_args.seed,
@@ -292,17 +295,16 @@ def _log_dataset(
     log_rank_0(logging.INFO, f"{'-' * 25} {split.value} {'-' * 25}")
     log_rank_0(logging.INFO, blended_dataset)
 
-    if split == DatasetSplit.train:
-        total_samples_seen = (
-            num_training_steps * gradient_accumulation_steps * micro_batch_size * ProcessGroupManager.get_world_size()
-        )
-    else:
-        if len(blended_dataset) % (micro_batch_size * ProcessGroupManager.get_world_size()) == 0:
-            num_steps = len(blended_dataset) // (micro_batch_size * ProcessGroupManager.get_world_size())
-        else:
-            num_steps = (len(blended_dataset) // (micro_batch_size * ProcessGroupManager.get_world_size())) + 1
+    dp_world_size = ProcessGroupManager.get_data_parallel_world_size()
 
-        total_samples_seen = num_steps * micro_batch_size * ProcessGroupManager.get_world_size()
+    if split == DatasetSplit.train:
+        total_samples_seen = num_training_steps * gradient_accumulation_steps * micro_batch_size * dp_world_size
+    else:
+        num_steps = len(blended_dataset) // (micro_batch_size * dp_world_size)
+        if len(blended_dataset) % (micro_batch_size * dp_world_size) != 0:
+            num_steps += 1
+
+        total_samples_seen = num_steps * micro_batch_size * dp_world_size
 
     log_rank_0(logging.INFO, "*" * 57)
     log_rank_0(logging.INFO, f"total samples seen = {total_samples_seen}")
