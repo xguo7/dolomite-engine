@@ -17,8 +17,7 @@ class Attention_TP(Attention):
     def __init__(self, config: CommonConfig, causal: bool, layer_idx: int = None) -> None:
         nn.Module.__init__(self)
 
-        self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
-        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+        tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         self.causal = causal
         self.global_hidden_size = config.n_embd
@@ -37,11 +36,11 @@ class Attention_TP(Attention):
         )
 
         self.hidden_size = divide_if_divisible(
-            self.global_hidden_size, self.tp_world_size, "hidden_size should be divisible by TP world size"
+            self.global_hidden_size, tp_world_size, "hidden_size should be divisible by TP world size"
         )
 
         self.num_heads = divide_if_divisible(
-            self.global_num_heads, self.tp_world_size, "num_heads must be divisible by TP world size"
+            self.global_num_heads, tp_world_size, "num_heads must be divisible by TP world size"
         )
 
         self.head_dim = divide_if_divisible(self.hidden_size, self.num_heads, "")
@@ -90,8 +89,8 @@ class Attention_TP(Attention):
 
             self.num_key_value_heads = divide_if_divisible(
                 self.global_num_key_value_heads,
-                self.tp_world_size,
-                f"`num_key_value_heads` ({self.global_num_key_value_heads}) must be divisible by `tensor_parallel_world_size` ({self.tp_world_size})",
+                tp_world_size,
+                f"`num_key_value_heads` ({self.global_num_key_value_heads}) must be divisible by `tensor_parallel_world_size` ({tp_world_size})",
             )
 
             self.c_attn = ColumnParallelLinear(
@@ -171,8 +170,9 @@ class _MQA_QueryKeyValueProjection(nn.Module):
         tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
         tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        start_index = tp_rank * (self.global_hidden_size // tp_world_size)
-        end_index = (tp_rank + 1) * (self.global_hidden_size // tp_world_size)
+        hidden_size_per_rank = divide_if_divisible(self.global_hidden_size, tp_world_size, "")
+        start_index = tp_rank * hidden_size_per_rank
+        end_index = (tp_rank + 1) * hidden_size_per_rank
 
         weight = safetensors_weight_manager.get_slice(prefix + "c_attn.weight")
         q_attn_state_dict = {"weight": weight[start_index:end_index, :]}
