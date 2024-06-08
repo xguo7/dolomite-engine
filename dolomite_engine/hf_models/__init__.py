@@ -17,7 +17,12 @@ from .models import (
     MoEDolomiteModel,
     convert_gpt_dolomite_to_gpt_crosslayer,
 )
-from .register_hf import is_custom_model, is_tensor_parallel_compatible_model, register_model_classes
+from .register_hf import (
+    get_tensor_parallel_class,
+    is_custom_model,
+    is_tensor_parallel_compatible_model,
+    register_model_classes,
+)
 
 
 register_model_classes()

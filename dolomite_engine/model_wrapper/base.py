@@ -7,7 +7,7 @@ from transformers.integrations import HfDeepSpeedConfig
 
 from ..arguments import ExportArgs, InferenceArgs, TrainingArgs
 from ..enums import AttentionImplementation, DistributedBackend, GradientCheckpointingMethod, LossMask, Mode
-from ..hf_models import is_custom_model, is_tensor_parallel_compatible_model
+from ..hf_models import get_tensor_parallel_class, is_custom_model, is_tensor_parallel_compatible_model
 from ..hf_models.modeling_utils import is_glu
 from ..utils import ProcessGroupManager, log_rank_0, string_to_torch_dtype
 
@@ -52,6 +52,9 @@ class ModelWrapper(torch.nn.Module):
         self._setup_config(args)
         self.tie_word_embeddings = self.config.tie_word_embeddings
         self.is_encoder_decoder = self.config.is_encoder_decoder
+
+        if self.tp_world_size > 1:
+            self.model_class = get_tensor_parallel_class(self.config.model_type)
 
         if self.tp_rank > 1:
             assert is_tensor_parallel_compatible_model(
