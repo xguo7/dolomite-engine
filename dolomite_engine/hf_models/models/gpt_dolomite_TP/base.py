@@ -69,10 +69,20 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
     def load_from_safetensors_weights_manager(
         self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
     ) -> None:
-        self._load_embeddings(self.wte, safetensors_weight_manager, prefix + "wte.")
+        # word embeddings
+        if self.tensor_parallel_embeddings:
+            self.wte.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "wte.")
+        else:
+            state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "wte.weight")}
+            self.wte.load_state_dict(state_dict)
 
+        # positional embeddings
         if self.position_embedding_type == PositionEmbeddingType.learned_absolute:
-            self._load_embeddings(self.wpe, safetensors_weight_manager, prefix + "wpe.")
+            if self.tensor_parallel_embeddings:
+                self.wpe.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "wpe.")
+            else:
+                state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "wpe.weight")}
+                self.wpe.load_state_dict(state_dict)
         elif self.position_embedding_type == PositionEmbeddingType.alibi:
             with torch.device(torch.cuda.current_device()):
                 self.alibi.reset_parameters()
@@ -82,25 +92,15 @@ class GPTDolomiteModel_TP(GPTDolomiteModel):
         else:
             raise ValueError(f"unexpected position_embedding_type ({self.position_embedding_type})")
 
+        # layers
         for layer_idx, block in tqdm(enumerate(self.h), desc="Loading layers"):
             block.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + f"h.{layer_idx}.")
 
+        # final layernorm
         state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "ln_f.weight")}
         if hasattr(self.ln_f, "bias"):
             state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "ln_f.bias")
         self.ln_f.load_state_dict(state_dict)
-
-    def _load_embeddings(
-        self,
-        module: Union[Embedding_TP, ParameterizedEmbedding],
-        safetensors_weight_manager: SafeTensorsWeightsManager,
-        prefix: str,
-    ) -> None:
-        if isinstance(module, Embedding_TP):
-            module.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix)
-        else:
-            state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "weight")}
-            module.load_state_dict(state_dict)
 
     def _get_alibi_bias(
         self,
