@@ -140,9 +140,13 @@ def train_step(
 
     with no_sync():
         for _ in range(gradient_accumulation_steps - 1):
-            batch = next(train_dataloader)
+            batch = None
+            if train_dataloader is not None:
+                batch = next(train_dataloader)
+
             with train_step_context:
                 loss_micro_step = model(batch)
+
             loss += loss_micro_step
 
             # compute gradients
@@ -154,9 +158,13 @@ def train_step(
             else:
                 raise ValueError(f"unexpected distributed backend ({distributed_backend})")
 
-    batch = next(train_dataloader)
+    batch = None
+    if train_dataloader is not None:
+        batch = next(train_dataloader)
+
     with train_step_context:
         loss_micro_step = model(batch)
+
     loss += loss_micro_step
 
     # compute gradients
@@ -222,7 +230,9 @@ def train(
     model.train()
 
     # need this for iterating infinitely
-    train_dataloader_infinite = infinite_iterator(train_dataloader)
+    train_dataloader_infinite = None
+    if train_dataloader is not None:
+        train_dataloader_infinite = infinite_iterator(train_dataloader)
 
     if eval_during_training:
         evaluate(val_dataloader, model, starting_iteration, experiments_tracker)

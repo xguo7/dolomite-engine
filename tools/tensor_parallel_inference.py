@@ -25,7 +25,10 @@ set_cuda_rng_tracker(cuda_rng_tracker)
 
 model_name = "save/"
 
-model = GPTDolomiteForCausalLM_TP.from_pretrained(model_name)
+model = GPTDolomiteForCausalLM_TP.from_pretrained(model_name, tensor_parallel_embeddings=True)
+
+if torch.distributed.get_rank() == 0:
+    print(model)
 
 # set model to eval mode
 model.eval()
