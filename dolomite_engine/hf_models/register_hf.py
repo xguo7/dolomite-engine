@@ -58,5 +58,5 @@ _TENSOR_PARALLEL_CLASS_MAPPING = {"gpt_dolomite": GPTDolomiteForCausalLM_TP}
 
 
 def get_tensor_parallel_class(model_type: str) -> AutoModelForCausalLM:
-    assert is_tensor_parallel_compatible_model(None, model_type)
+    assert is_tensor_parallel_compatible_model(AutoModelForCausalLM, model_type)
     return _TENSOR_PARALLEL_CLASS_MAPPING[model_type]
