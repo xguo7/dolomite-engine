@@ -9,13 +9,13 @@ from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import ParameterizedEmbedding, RoPE, YaRNScaledRoPE, get_normalization_function
 from ...modeling_utils_TP import Alibi_TP, Dropout_TP, Embedding_TP
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteModel, GPTDolomitePreTrainedModel
-from .layer import GPTDolomiteBlock_TP
 
 
-class GPTDolomiteModel_TP(GPTDolomiteModel):
-
+class GPTDolomitePreTrainedModel_TP(GPTDolomitePreTrainedModel):
     _no_split_modules = ["GPTDolomiteBlock_TP"]
 
+
+class GPTDolomiteModel_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteModel):
     def __init__(self, config: GPTDolomiteConfig, tensor_parallel_embeddings: bool = False, **kwargs) -> None:
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 

@@ -11,10 +11,10 @@ from ....utils import SafeTensorsWeightsManager
 from ...modeling_utils import ParameterizedLinear
 from ...modeling_utils_TP import CopyToTensorParallelRegion, GatherFromTensorParallelRegion, TensorParallelCrossEntropy
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteForCausalLM, GPTDolomitePreTrainedModel
-from .base import GPTDolomiteModel_TP
+from .base import GPTDolomiteModel_TP, GPTDolomitePreTrainedModel_TP
 
 
-class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
+class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCausalLM):
     def __init__(self, config: GPTDolomiteConfig, tensor_parallel_embeddings: bool = False, **kwargs) -> None:
         GPTDolomitePreTrainedModel.__init__(self, config, **kwargs)
 
