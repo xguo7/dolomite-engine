@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from transformers import DynamicCache
 from transformers.modeling_outputs import CausalLMOutputWithPast

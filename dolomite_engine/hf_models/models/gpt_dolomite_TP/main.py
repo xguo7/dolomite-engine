@@ -23,12 +23,6 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
 
         self.transformer = GPTDolomiteModel_TP(config, tensor_parallel_embeddings=tensor_parallel_embeddings, **kwargs)
 
-        # we don't split lm_head for now
-        # TODO investigate how to split this for HF generate API
-        self.lm_head = ParameterizedLinear(config.n_embd, config.vocab_size, bias=False)
-
-        self.m_width = config.m_width
-
         if not self._tied_word_embeddings:
             self.lm_head = ParameterizedLinear(
                 config.n_embd,
@@ -37,6 +31,10 @@ class GPTDolomiteForCausalLM_TP(GPTDolomiteForCausalLM):
                 std=config.initializer_range,
             )
 
+        self.m_width = config.m_width
+        self.upcast_logits_for_loss = config.upcast_logits_for_loss
+
+        # Initialize weights and apply final processing
         self.post_init()
 
     def forward(
