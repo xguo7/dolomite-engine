@@ -20,8 +20,9 @@ class MLP_TP(MLP):
         hidden_size = config.n_embd
         intermediate_size = config.n_inner
         activation_function = config.activation_function
-        add_bias = config.add_bias
         residual_dropout = config.resid_pdrop
+        self.is_glu_activation = is_glu(activation_function)
+        self.add_bias = config.add_bias
 
         self.init_method = config.init_method
         self.initializer_range = config.initializer_range
@@ -31,15 +32,10 @@ class MLP_TP(MLP):
         self.tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        self.hidden_size = config.n_embd
-        self.intermediate_size = config.n_inner
-        self.is_glu_activation = is_glu(activation_function)
-        self.add_bias = add_bias
-
         self.c_fc = ColumnParallelLinear(
             hidden_size,
             2 * intermediate_size if self.is_glu_activation else intermediate_size,
-            bias=add_bias,
+            bias=self.add_bias,
         )
 
         self.act = get_activation_function(activation_function)
