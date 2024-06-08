@@ -82,28 +82,6 @@ def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
     return output
 
 
-def tensor_parallel_all_gather(input: torch.Tensor, dim: int) -> torch.Tensor:
-    tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
-
-    if tp_world_size == 1:
-        return input
-
-    if dim == 0:
-        shape = input.shape[0] * tp_world_size, input.shape[1]
-    elif dim == 1:
-        shape = input.shape[0], input.shape[1] * tp_world_size
-    else:
-        raise ValueError(f"unexpected dim={dim}")
-
-    torch.distributed.all_gather_into_tensor(
-        torch.empty(*shape, dtype=input.dtype, device=torch.cuda.current_device()),
-        input,
-        group=ProcessGroupManager.get_tensor_parallel_group(),
-    )
-
-    return input
-
-
 def tensor_parallel_split_safetensor_slice(slice, dim: int, start_end: Tuple[int, int] = None) -> torch.Tensor:
     shape = slice.get_shape()
     dimensionality = len(shape)
