@@ -58,6 +58,8 @@ def wrap_model_for_distributed_training(
     communication_dtype = args.distributed_args.communication_dtype
     fp8_backend = args.mixed_precision_args.fp8_backend
     zero_hpz_partition_size = args.distributed_args.zero_hpz_partition_size
+    efficient_initialization = args.model_args.efficient_initialization
+
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
     if dtype in ["fp16", "bf16"]:
@@ -149,7 +151,7 @@ def wrap_model_for_distributed_training(
                     with torch.no_grad():
                         module.reset_parameters()
             else:
-                if args.model_args.efficient_initialization and ProcessGroupManager.get_global_rank() != 0:
+                if efficient_initialization and ProcessGroupManager.get_data_parallel_rank() != 0:
                     module = module.to_empty(device=torch.cuda.current_device())
 
         model = FSDP(
@@ -164,8 +166,8 @@ def wrap_model_for_distributed_training(
             limit_all_gathers=True,
             use_orig_params=True,
             # https://github.com/meta-llama/llama-recipes/blob/492455dc080f6c25f356e283e443be0cce86aaeb/src/llama_recipes/finetuning.py#L191
-            sync_module_states=args.model_args.efficient_initialization,
-            param_init_fn=_param_init,
+            sync_module_states=efficient_initialization,
+            param_init_fn=_param_init if efficient_initialization else None,
             device_mesh=ProcessGroupManager.get_data_parallel_mesh(),
         )
 
