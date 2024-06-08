@@ -40,6 +40,8 @@ class ProcessGroupManager:
         if data_parallel_size is None:
             data_parallel_size = total_gpus // tensor_parallel_size
 
+        assert tensor_parallel_size * data_parallel_size == total_gpus
+
         global _MESH, _ZERO_HPZ_PARTITION_SIZE
 
         _MESH = init_device_mesh(

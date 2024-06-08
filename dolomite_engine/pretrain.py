@@ -240,7 +240,11 @@ def main() -> None:
     args: TrainingArgs = get_args(mode)
 
     # initialize distributed with nccl for multi-node communications
-    init_distributed(args.distributed_args.zero_hpz_partition_size)
+    init_distributed(
+        tensor_parallel_size=args.distributed_args.tensor_parallel_size,
+        data_parallel_size=args.distributed_args.data_parallel_size,
+        zero_hpz_partition_size=args.distributed_args.zero_hpz_partition_size,
+    )
     set_seed(args.random_args.seed)
 
     model = get_model(args, mode)
