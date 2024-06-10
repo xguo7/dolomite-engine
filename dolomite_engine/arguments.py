@@ -302,6 +302,8 @@ class DistributedArgs(BaseArgs):
     tensor_parallel_size: Optional[int] = None
     # data parallel world size
     data_parallel_size: Optional[int] = None
+    # distributed timeout for NCCL in minutes
+    timeout_minutes: Optional[int] = None
 
     def model_post_init(self, __context: Any) -> None:
         _check_not_None([(self.zero_hpz_partition_size, "zero_hpz_partition_size")])

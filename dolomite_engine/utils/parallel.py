@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from typing import Callable
 
 import torch
@@ -31,8 +32,22 @@ _ZERO_HPZ_PARTITION_SIZE: int = None
 
 class ProcessGroupManager:
     def __init__(
-        self, tensor_parallel_size: int = None, data_parallel_size: int = None, zero_hpz_partition_size: int = None
+        self,
+        tensor_parallel_size: int = None,
+        data_parallel_size: int = None,
+        zero_hpz_partition_size: int = None,
+        timeout_minutes: int = None,
     ) -> None:
+        if timeout_minutes is not None:
+            timeout_minutes = timedelta(timeout_minutes)
+
+        torch.distributed.init_process_group(
+            "nccl",
+            rank=ProcessGroupManager.get_global_rank(),
+            world_size=ProcessGroupManager.get_world_size(),
+            timeout=timeout_minutes,
+        )
+
         if tensor_parallel_size is None:
             tensor_parallel_size = 1
 

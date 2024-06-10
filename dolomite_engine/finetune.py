@@ -355,6 +355,7 @@ def main() -> None:
         tensor_parallel_size=args.distributed_args.tensor_parallel_size,
         data_parallel_size=args.distributed_args.data_parallel_size,
         zero_hpz_partition_size=args.distributed_args.zero_hpz_partition_size,
+        timeout_minutes=args.distributed_args.timeout_minutes,
     )
     set_seed(args.random_args.seed)
 

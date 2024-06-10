@@ -21,19 +21,23 @@ from .wrapper import get_module_class_from_name
 from .yaml import load_yaml
 
 
-def init_distributed(tensor_parallel_size: int, data_parallel_size: int, zero_hpz_partition_size: int) -> None:
+def init_distributed(
+    tensor_parallel_size: int, data_parallel_size: int, zero_hpz_partition_size: int, timeout_minutes: int = None
+) -> None:
     """intialize distributed
 
     Args:
         tensor_parallel_size (int): tensor parallel size
         data_parallel_size (int): data parallel size
         zero_hpz_partition_size (int): HSDP size
+        timeout_minutes (int, optional): distributed timeout in minutes. Defaults to None.
     """
 
     ProcessGroupManager(
         tensor_parallel_size=tensor_parallel_size,
         data_parallel_size=data_parallel_size,
         zero_hpz_partition_size=zero_hpz_partition_size,
+        timeout_minutes=timeout_minutes,
     )
 
 
