@@ -85,7 +85,7 @@ def _split_along_last_dim(input: torch.Tensor) -> torch.Tensor:
 def tensor_parallel_split_safetensor_slice(slice, dim: int, start_end: Tuple[int, int] = None) -> torch.Tensor:
     shape = slice.get_shape()
     dimensionality = len(shape)
-    assert 1 <= dimensionality <= 2, f"tensor should be either 1 or 2 dimensional but {dimensionality} was found"
+    assert dimensionality in [1, 2], f"tensor should be either 1 or 2 dimensional but {dimensionality} was found"
 
     tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
