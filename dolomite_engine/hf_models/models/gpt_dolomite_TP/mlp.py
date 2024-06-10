@@ -27,14 +27,14 @@ class MLP_TP(MLP):
         residual_dropout = config.resid_pdrop
         self.is_glu_activation = is_glu(activation_function)
 
-        self.init_method = config.init_method
-        self.initializer_range = config.initializer_range
-        self.m_width = config.m_width
-        self.n_layer = config.n_layer
+        init_method = InitMethod(config.init_method)
+        initializer_range = config.initializer_range
+        m_width = config.m_width
+        n_layer = config.n_layer
 
-        std = self.initializer_range
-        if self.init_method == InitMethod.mup:
-            std /= math.sqrt(self.m_width)
+        std = initializer_range
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
         self.c_fc = ColumnParallelLinear(
             hidden_size,
             2 * intermediate_size if self.is_glu_activation else intermediate_size,
@@ -44,7 +44,10 @@ class MLP_TP(MLP):
 
         self.act = get_activation_function(activation_function)
 
-        self.c_proj = RowParallelLinear(intermediate_size, hidden_size, bias=self.add_bias)
+        std = initializer_range / math.sqrt(2 * n_layer)
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
+        self.c_proj = RowParallelLinear(intermediate_size, hidden_size, bias=self.add_bias, std=std)
 
         self.dropout = nn.Identity() if residual_dropout == 0 else Dropout_TP(residual_dropout)
 

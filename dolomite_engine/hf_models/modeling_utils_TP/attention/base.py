@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 
 import torch
@@ -6,7 +7,7 @@ import torch.nn as nn
 
 from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ...config import CommonConfig
-from ...enums import AttentionHeadType, PositionEmbeddingType
+from ...enums import AttentionHeadType, InitMethod, PositionEmbeddingType
 from ...modeling_utils import Attention, ParameterizedLinear
 from ...utils import divide_if_divisible
 from ..dropout import Dropout_TP
@@ -25,10 +26,11 @@ class Attention_TP(Attention):
         self.global_num_heads = config.n_head
         self.global_num_key_value_heads = config.num_key_value_heads
         self.add_bias = config.add_bias
-        self.initializer_range = config.initializer_range
-        self.m_width = config.m_width
-        self.n_layer = config.n_layer
-        self.init_method = config.init_method
+
+        initializer_range = config.initializer_range
+        m_width = config.m_width
+        n_layer = config.n_layer
+        init_method = InitMethod(config.init_method)
 
         divide_if_divisible(
             self.global_hidden_size,
@@ -57,6 +59,10 @@ class Attention_TP(Attention):
             config.scale_attention_softmax_in_fp32 and config.attention_softmax_in_fp32
         )
 
+        std = initializer_range
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
+
         if self.attention_head_type == AttentionHeadType.mha:
             if self.global_num_key_value_heads is None:
                 self.global_num_key_value_heads = self.global_num_heads
@@ -71,6 +77,7 @@ class Attention_TP(Attention):
                 self.global_hidden_size,
                 self.global_hidden_size + 2 * self.global_num_key_value_heads * self.head_dim,
                 bias=self.add_bias,
+                std=std,
             )
         elif self.attention_head_type == AttentionHeadType.gqa:
             assert (
@@ -98,6 +105,7 @@ class Attention_TP(Attention):
                 self.global_hidden_size,
                 self.global_hidden_size + 2 * self.global_num_key_value_heads * self.head_dim,
                 bias=self.add_bias,
+                std=std,
             )
         elif self.attention_head_type == AttentionHeadType.mqa:
             if self.global_num_key_value_heads is None:
@@ -109,11 +117,14 @@ class Attention_TP(Attention):
 
             self.num_key_value_heads = 1
 
-            self.c_attn = _MQA_QueryKeyValueProjection(self.global_hidden_size, self.head_dim, add_bias=self.add_bias)
+            self.c_attn = _MQA_QueryKeyValueProjection(config)
         else:
             raise ValueError(f"unexpected attention_head_type ({self.attention_head_type})")
 
-        self.c_proj = RowParallelLinear(self.global_hidden_size, self.global_hidden_size, bias=self.add_bias)
+        std = initializer_range / math.sqrt(2 * n_layer)
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
+        self.c_proj = RowParallelLinear(self.global_hidden_size, self.global_hidden_size, bias=self.add_bias, std=std)
 
         self.attn_pdrop = config.attn_pdrop
         self.resid_pdrop = config.resid_pdrop
@@ -146,15 +157,38 @@ class Attention_TP(Attention):
 
 
 class _MQA_QueryKeyValueProjection(nn.Module):
-    def __init__(self, global_hidden_size: int, head_dim: int, add_bias: bool) -> None:
+    def __init__(self, config: CommonConfig) -> None:
         super().__init__()
 
-        self.global_hidden_size = global_hidden_size
-        self.head_dim = head_dim
-        self.add_bias = add_bias
+        self.global_hidden_size = config.n_embd
+        self.add_bias = config.add_bias
+        global_num_heads = config.n_head
 
-        self.q_attn = ColumnParallelLinear(global_hidden_size, global_hidden_size, bias=add_bias)
-        self.kv_attn = ParameterizedLinear(global_hidden_size, 2 * head_dim, bias=add_bias)
+        initializer_range = config.initializer_range
+        m_width = config.m_width
+        n_layer = config.n_layer
+        init_method = InitMethod(config.init_method)
+
+        self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
+
+        hidden_size = divide_if_divisible(
+            self.global_hidden_size, self.tp_world_size, "hidden_size should be divisible by TP world size"
+        )
+
+        num_heads = divide_if_divisible(
+            global_num_heads, self.tp_world_size, "num_heads must be divisible by TP world size"
+        )
+        self.head_dim = divide_if_divisible(hidden_size, num_heads, "")
+
+        std = initializer_range
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
+        self.q_attn = ColumnParallelLinear(self.global_hidden_size, self.global_hidden_size, bias=self.add_bias)
+
+        std = initializer_range / math.sqrt(2 * n_layer)
+        if init_method == InitMethod.mup:
+            std /= math.sqrt(m_width)
+        self.kv_attn = ParameterizedLinear(self.global_hidden_size, 2 * self.head_dim, bias=self.add_bias)
 
         def _kv_reset_parameters(self) -> None:
             with torch.no_grad():
@@ -181,9 +215,8 @@ class _MQA_QueryKeyValueProjection(nn.Module):
         self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
     ) -> None:
         tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
-        tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
-        hidden_size_per_rank = divide_if_divisible(self.global_hidden_size, tp_world_size, "")
+        hidden_size_per_rank = divide_if_divisible(self.global_hidden_size, self.tp_world_size, "")
         start_index = tp_rank * hidden_size_per_rank
         end_index = (tp_rank + 1) * hidden_size_per_rank
 

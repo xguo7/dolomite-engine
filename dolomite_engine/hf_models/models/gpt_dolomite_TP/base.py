@@ -33,9 +33,9 @@ class GPTDolomiteModel_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteModel):
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 
         if self.tensor_parallel_embeddings:
-            self.wte = Embedding_TP(config.vocab_size, self.embed_dim)
+            self.wte = Embedding_TP(config.vocab_size, self.embed_dim, std=self.initializer_range)
         else:
-            self.wte = ParameterizedEmbedding(config.vocab_size, self.embed_dim)
+            self.wte = ParameterizedEmbedding(config.vocab_size, self.embed_dim, std=self.initializer_range)
 
         self.drop = nn.Identity() if config.embd_pdrop == 0 else Dropout_TP(config.embd_pdrop)
         self.h = nn.ModuleList(
