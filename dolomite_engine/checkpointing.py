@@ -74,12 +74,14 @@ def save_checkpoint(
             state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True),
             optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=True),
         ):
-            run_rank_n(torch.save)(model.state_dict(), _get_model_path(save_path))
+            model_state_dict = model.state_dict()
+            if ProcessGroupManager.get_data_parallel_rank() == 0:
+                torch.save(model_state_dict, _get_model_path(save_path))
 
             if save_optimizer:
-                run_rank_n(torch.save)(
-                    FSDP.optim_state_dict(model=model, optim=optimizer), _get_optimizer_path(save_path)
-                )
+                optimizer_state_dict = FSDP.optim_state_dict(model=model, optim=optimizer)
+                if ProcessGroupManager.get_data_parallel_rank() == 0:
+                    torch.save(optimizer_state_dict, _get_optimizer_path(save_path))
 
         run_rank_n(torch.save)(lr_scheduler.state_dict(), _get_lr_scheduler_path(save_path))
     else:
@@ -293,10 +295,16 @@ def _get_base_path(path: str, iteration: int) -> str:
 
 
 def _get_model_path(path: str) -> str:
+    if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
+        path = os.path.join(path, f"tp-{ProcessGroupManager.get_tensor_parallel_rank()}")
+
     return os.path.join(path, "model.pt")
 
 
 def _get_optimizer_path(path: str) -> str:
+    if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
+        path = os.path.join(path, f"tp-{ProcessGroupManager.get_tensor_parallel_rank()}")
+
     return os.path.join(path, "optimizer.pt")
 
 
