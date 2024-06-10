@@ -9,12 +9,14 @@ from transformers import set_seed
 
 from .arguments import TrainingArgs, get_args
 from .checkpointing import load_checkpoint_for_training, save_checkpoint
+from .communication import Communication
 from .data import ResumableDataLoader, get_dataloader, infinite_iterator
 from .distributed import wrap_model_for_distributed_training
 from .enums import DatasetSplit, DistributedBackend, FP8Backend, Mode
 from .model_wrapper import ModelWrapperForFinetuning, get_model, log_model
 from .utils import (
     ExperimentsTracker,
+    ProcessGroupManager,
     RunningMean,
     init_distributed,
     is_transformer_engine_available,
@@ -303,7 +305,18 @@ def evaluate(
         float: loss at the current step
     """
 
-    if val_dataloader is None:
+    if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
+        # other tensor parallel ranks need to be told if val dataloader is None or not
+        is_valdataloader_none = val_dataloader is None if ProcessGroupManager.get_tensor_parallel_rank() == 0 else None
+        is_valdataloader_none = Communication.broadcast_object(
+            is_valdataloader_none,
+            src=ProcessGroupManager.get_tensor_parallel_first_rank(),
+            group=ProcessGroupManager.get_tensor_parallel_group(),
+        )
+    else:
+        is_valdataloader_none = val_dataloader is None
+
+    if is_valdataloader_none:
         return
 
     model.eval()
