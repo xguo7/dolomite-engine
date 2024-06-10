@@ -1,6 +1,6 @@
 import torch
 import torch.distributed
-import torch.nn as nn
+import torch.nn.functional as F
 
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
@@ -81,21 +81,19 @@ class RowParallelLinear(ParameterizedLinear):
         super().__init__(
             in_features=self.in_features_per_device,
             out_features=out_features,
-            bias=False,
+            bias=bias,
             device=device,
             dtype=dtype,
             std=std,
         )
 
-        self.tp_bias = None
-        if bias:
-            self.tp_bias = nn.Parameter(torch.empty(out_features))
-
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        input = super().forward(input)
+        # we can't call super().forward here since that will add bias to each TP rank
+        # but for tensor parallel, we need to add it on only 1 TP rank
+        input = F.linear(input, self.weight, None)
         input = ReduceFromTensorParallelRegion.apply(input)
-        if self.tp_bias is not None:
-            input = input + self.tp_bias
+        if self.bias is not None:
+            input = input + self.bias
         return input
 
     def load_from_safetensors_weights_manager(
@@ -105,19 +103,12 @@ class RowParallelLinear(ParameterizedLinear):
         weight = tensor_parallel_split_safetensor_slice(weight, dim=1)
         state_dict = {"weight": weight}
 
-        if self.tp_bias is not None:
-            state_dict["tp_bias"] = safetensors_weight_manager.get_tensor(prefix + "bias")
+        if self.bias is not None:
+            state_dict["bias"] = safetensors_weight_manager.get_tensor(prefix + "bias")
 
         self.load_state_dict(state_dict)
 
     def extra_repr(self) -> str:
         return "in_features_per_device={}, out_features={}, bias={}".format(
-            self.in_features_per_device, self.out_features, self.tp_bias is not None
+            self.in_features_per_device, self.out_features, self.bias is not None
         )
-
-    @torch.no_grad()
-    def reset_parameters(self) -> None:
-        if self.tp_bias is not None:
-            self.tp_bias.zero_()
-
-        return super().reset_parameters()
