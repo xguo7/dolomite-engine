@@ -125,6 +125,10 @@ def get_dataloader(
         return
 
     if args.distributed_args.dispatching_dataloader:
+        assert (
+            ProcessGroupManager.get_tensor_parallel_world_size() == 1
+        ), "tensor parallel doesn't support dispatching dataloader"
+
         dataloader = _get_dispatching_dataloader(
             args, split=split, mode=mode, tokenizer=tokenizer, is_encoder_decoder=is_encoder_decoder
         )

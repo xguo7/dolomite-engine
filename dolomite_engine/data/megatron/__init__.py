@@ -36,6 +36,10 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
     dispatching_dataloader = args.distributed_args.dispatching_dataloader
 
     if dispatching_dataloader:
+        assert (
+            ProcessGroupManager.get_tensor_parallel_world_size() == 1
+        ), "tensor parallel doesn't support dispatching dataloader"
+
         num_ranks_per_node = torch.cuda.device_count()
         node_rank = ProcessGroupManager.get_global_rank() // num_ranks_per_node
         num_nodes = ProcessGroupManager.get_world_size() // num_ranks_per_node
