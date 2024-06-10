@@ -5,7 +5,7 @@ import torch
 import torch.distributed
 import torch.nn as nn
 
-from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
+from ....utils import ProcessGroupManager, SafeTensorsWeightsManager, get_cuda_rng_tracker
 from ...config import CommonConfig
 from ...enums import AttentionHeadType, InitMethod, PositionEmbeddingType
 from ...modeling_utils import Attention, ParameterizedLinear
@@ -183,24 +183,16 @@ class _MQA_QueryKeyValueProjection(nn.Module):
         std = initializer_range
         if init_method == InitMethod.mup:
             std /= math.sqrt(m_width)
-        self.q_attn = ColumnParallelLinear(self.global_hidden_size, self.global_hidden_size, bias=self.add_bias)
+        self.q_attn = ColumnParallelLinear(
+            self.global_hidden_size, self.global_hidden_size, bias=self.add_bias, std=std
+        )
 
         std = initializer_range / math.sqrt(2 * n_layer)
         if init_method == InitMethod.mup:
             std /= math.sqrt(m_width)
-        self.kv_attn = ParameterizedLinear(self.global_hidden_size, 2 * self.head_dim, bias=self.add_bias)
-
-        def _kv_reset_parameters(self) -> None:
-            with torch.no_grad():
-                self.weight = torch.distributed.all_reduce(
-                    self.weight, group=ProcessGroupManager.get_data_parallel_group()
-                )
-                if self.bias is not None:
-                    self.bias = torch.distributed.all_reduce(
-                        self.bias, group=ProcessGroupManager.get_data_parallel_group()
-                    )
-
-        self.kv_attn.reset_parameters = _kv_reset_parameters
+        self.kv_attn = _TensorParallelSharedLinear(
+            self.global_hidden_size, 2 * self.head_dim, bias=self.add_bias, std=std
+        )
 
     def forward(self, hidden_states: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         query = self.q_attn(hidden_states)
@@ -233,3 +225,10 @@ class _MQA_QueryKeyValueProjection(nn.Module):
 
         self.q_attn.load_state_dict(q_attn_state_dict)
         self.kv_attn.load_state_dict(kv_attn_state_dict)
+
+
+class _TensorParallelSharedLinear(ParameterizedLinear):
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        with get_cuda_rng_tracker().fork():
+            return super().reset_parameters()
