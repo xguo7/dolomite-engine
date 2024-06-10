@@ -5,7 +5,7 @@ import torch.distributed
 from torch.distributed import ProcessGroup
 from torch.utils.data import DataLoader, Dataset, Sampler
 
-from ..distributed import Communication
+from ..communication import Communication
 from ..utils import ProcessGroupManager
 
 

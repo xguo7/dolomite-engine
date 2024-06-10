@@ -54,7 +54,6 @@ class ModelWrapper(torch.nn.Module):
         if self.tp_world_size > 1:
             self.model_class = get_tensor_parallel_class(self.config.model_type)
 
-        if self.tp_rank > 1:
             assert is_tensor_parallel_compatible_model(
                 self.model_class, self.config.model_type
             ), "tensor parallel is not supported with this model"

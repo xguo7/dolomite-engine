@@ -3,7 +3,7 @@ from typing import Any
 import torch.distributed
 from torch.distributed import ProcessGroup
 
-from ..utils import ProcessGroupManager
+from .utils import ProcessGroupManager
 
 
 class Communication:

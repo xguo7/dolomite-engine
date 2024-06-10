@@ -4,6 +4,7 @@ import torch
 import torch.distributed
 
 from ..arguments import ExportArgs, InferenceArgs, TrainingArgs
+from ..communication import Communication
 from ..enums import Mode
 from ..utils import ProcessGroupManager
 from .base import ModelWrapper
@@ -30,13 +31,11 @@ class ModelWrapperForFinetuning(ModelWrapper):
             if self.tp_world_size > 1:
                 keys = ["input_ids", "attention_mask", "labels"]
 
-                batch_shape = [batch[keys[0]].shape if self.tp_rank == 0 else None]
-                torch.distributed.broadcast_object_list(
-                    batch_shape,
-                    src=ProcessGroupManager.get_tensor_parallel_first_rank(),
-                    group=ProcessGroupManager.get_tensor_parallel_group(),
-                )
-                batch_shape = batch_shape[0]
+                tp_source_rank = ProcessGroupManager.get_tensor_parallel_first_rank()
+                tp_group = ProcessGroupManager.get_tensor_parallel_group()
+
+                batch_shape = batch[keys[0]].shape if self.tp_rank == 0 else None
+                batch_shape = Communication.broadcast_object(batch_shape, src=tp_source_rank, group=tp_group)
 
                 if self.tp_rank == 0:
                     for key in keys:
@@ -47,7 +46,8 @@ class ModelWrapperForFinetuning(ModelWrapper):
                         for key in keys
                     }
 
-                torch.distributed.broadcast
+                for key in keys:
+                    torch.distributed.broadcast(batch[key], src=tp_source_rank, group=tp_group)
             else:
                 for key in batch:
                     batch[key] = batch[key].to(torch.cuda.current_device())
