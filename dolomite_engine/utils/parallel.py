@@ -124,8 +124,8 @@ class ProcessGroupManager:
         global _TENSOR_PARALLEL_FIRST_RANK
 
         if _TENSOR_PARALLEL_FIRST_RANK is None:
-            global _TENSOR_PARALLEL_GROUP
-            ranks = torch.distributed.get_process_group_ranks(_TENSOR_PARALLEL_GROUP)
+            group = ProcessGroupManager.get_tensor_parallel_group()
+            ranks = torch.distributed.get_process_group_ranks(group)
             _TENSOR_PARALLEL_FIRST_RANK = ranks[0]
         return _TENSOR_PARALLEL_FIRST_RANK
 
