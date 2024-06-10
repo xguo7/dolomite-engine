@@ -296,16 +296,20 @@ def _get_base_path(path: str, iteration: int) -> str:
 
 def _get_model_path(path: str) -> str:
     if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
-        path = os.path.join(path, f"tp-{ProcessGroupManager.get_tensor_parallel_rank()}")
+        suffix = f"model-tp-{ProcessGroupManager.get_tensor_parallel_rank()}"
+    else:
+        suffix = "model.pt"
 
-    return os.path.join(path, "model.pt")
+    return os.path.join(path, suffix)
 
 
 def _get_optimizer_path(path: str) -> str:
     if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
-        path = os.path.join(path, f"tp-{ProcessGroupManager.get_tensor_parallel_rank()}")
+        suffix = f"optimizer-tp-{ProcessGroupManager.get_tensor_parallel_rank()}"
+    else:
+        suffix = "optimizer.pt"
 
-    return os.path.join(path, "optimizer.pt")
+    return os.path.join(path, suffix)
 
 
 def _get_lr_scheduler_path(path: str) -> str:
