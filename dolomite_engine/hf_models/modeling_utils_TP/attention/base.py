@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import torch
+import torch.distributed
 import torch.nn as nn
 
 from ....utils import ProcessGroupManager, SafeTensorsWeightsManager
@@ -154,6 +155,18 @@ class _MQA_QueryKeyValueProjection(nn.Module):
 
         self.q_attn = ColumnParallelLinear(global_hidden_size, global_hidden_size, bias=add_bias)
         self.kv_attn = ParameterizedLinear(global_hidden_size, 2 * head_dim, bias=add_bias)
+
+        def _kv_reset_parameters(self) -> None:
+            with torch.no_grad():
+                self.weight = torch.distributed.all_reduce(
+                    self.weight, group=ProcessGroupManager.get_data_parallel_group()
+                )
+                if self.bias is not None:
+                    self.bias = torch.distributed.all_reduce(
+                        self.bias, group=ProcessGroupManager.get_data_parallel_group()
+                    )
+
+        self.kv_attn.reset_parameters = _kv_reset_parameters
 
     def forward(self, hidden_states: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         query = self.q_attn(hidden_states)

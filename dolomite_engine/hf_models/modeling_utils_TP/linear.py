@@ -114,3 +114,10 @@ class RowParallelLinear(ParameterizedLinear):
         return "in_features_per_device={}, out_features={}, bias={}".format(
             self.in_features_per_device, self.out_features, self.tp_bias is not None
         )
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        if self.tp_bias is not None:
+            self.tp_bias.zero_()
+
+        return super().reset_parameters()
