@@ -18,6 +18,7 @@ _TENSOR_PARALLEL_MESH: DeviceMesh = None
 _TENSOR_PARALLEL_GROUP: ProcessGroup = None
 _TENSOR_PARALLEL_RANK: int = None
 _TENSOR_PARALLEL_WORLD_SIZE: int = None
+_TENSOR_PARALLEL_FIRST_RANK: int = None
 
 # data parallel
 _DATA_PARALLEL_MESH: DeviceMesh = None
@@ -117,6 +118,16 @@ class ProcessGroupManager:
         if _TENSOR_PARALLEL_WORLD_SIZE is None:
             _TENSOR_PARALLEL_WORLD_SIZE = ProcessGroupManager.get_tensor_parallel_mesh().size()
         return _TENSOR_PARALLEL_WORLD_SIZE
+
+    @staticmethod
+    def get_tensor_parallel_first_rank() -> int:
+        global _TENSOR_PARALLEL_FIRST_RANK
+
+        if _TENSOR_PARALLEL_FIRST_RANK is None:
+            global _TENSOR_PARALLEL_GROUP
+            ranks = torch.distributed.get_process_group_ranks(_TENSOR_PARALLEL_GROUP)
+            _TENSOR_PARALLEL_FIRST_RANK = ranks[0]
+        return _TENSOR_PARALLEL_FIRST_RANK
 
     # data parallel
     @staticmethod
