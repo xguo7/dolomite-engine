@@ -11,6 +11,7 @@ from transformers import set_seed
 
 from .arguments import TrainingArgs, get_args
 from .checkpointing import load_checkpoint_for_training, save_checkpoint
+from .communication import Communication
 from .data import get_megatron_gpt_dataloaders
 from .distributed import wrap_model_for_distributed_training
 from .enums import DistributedBackend, FP8Backend, Mode
@@ -210,7 +211,22 @@ def evaluate(
         float: loss at the current step
     """
 
-    if val_dataloaders is None or len(val_dataloaders) == 0:
+    if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
+        # other tensor parallel ranks need to be told if val dataloader is None or not
+        is_val_dataloader_none = (
+            val_dataloaders is None or len(val_dataloaders) == 0
+            if ProcessGroupManager.get_tensor_parallel_rank() == 0
+            else None
+        )
+        is_val_dataloader_none = Communication.broadcast_object(
+            is_val_dataloader_none,
+            src=ProcessGroupManager.get_tensor_parallel_first_rank(),
+            group=ProcessGroupManager.get_tensor_parallel_group(),
+        )
+    else:
+        is_val_dataloader_none = val_dataloaders is None or len(val_dataloaders) == 0
+
+    if is_val_dataloader_none:
         return
 
     model.eval()

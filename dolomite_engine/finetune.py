@@ -307,16 +307,20 @@ def evaluate(
 
     if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
         # other tensor parallel ranks need to be told if val dataloader is None or not
-        is_valdataloader_none = val_dataloader is None if ProcessGroupManager.get_tensor_parallel_rank() == 0 else None
-        is_valdataloader_none = Communication.broadcast_object(
-            is_valdataloader_none,
+        is_val_dataloader_none = (
+            val_dataloader is None or len(val_dataloader) == 0
+            if ProcessGroupManager.get_tensor_parallel_rank() == 0
+            else None
+        )
+        is_val_dataloader_none = Communication.broadcast_object(
+            is_val_dataloader_none,
             src=ProcessGroupManager.get_tensor_parallel_first_rank(),
             group=ProcessGroupManager.get_tensor_parallel_group(),
         )
     else:
-        is_valdataloader_none = val_dataloader is None
+        is_val_dataloader_none = val_dataloader is None or len(val_dataloader) == 0
 
-    if is_valdataloader_none:
+    if is_val_dataloader_none:
         return
 
     model.eval()
