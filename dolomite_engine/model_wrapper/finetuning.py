@@ -40,7 +40,7 @@ class ModelWrapperForFinetuning(ModelWrapper):
 
                 if self.tp_rank == 0:
                     for key in keys:
-                        batch[key] = batch[key].to(self.input_device)
+                        batch[key] = batch[key].to(torch.cuda.current_device())
                 else:
                     batch = {
                         key: torch.empty(batch_shape, dtype=torch.long, device=torch.cuda.current_device())
@@ -50,7 +50,7 @@ class ModelWrapperForFinetuning(ModelWrapper):
                 torch.distributed.broadcast
             else:
                 for key in batch:
-                    batch[key] = batch[key].to(self.input_device)
+                    batch[key] = batch[key].to(torch.cuda.current_device())
 
         model_outputs = self.model(**batch)
 
