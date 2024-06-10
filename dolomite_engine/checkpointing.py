@@ -296,7 +296,7 @@ def _get_base_path(path: str, iteration: int) -> str:
 
 def _get_model_path(path: str) -> str:
     if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
-        suffix = f"model-tp-{ProcessGroupManager.get_tensor_parallel_rank()}"
+        suffix = f"model-tp-{ProcessGroupManager.get_tensor_parallel_rank()}.pt"
     else:
         suffix = "model.pt"
 
@@ -305,7 +305,7 @@ def _get_model_path(path: str) -> str:
 
 def _get_optimizer_path(path: str) -> str:
     if ProcessGroupManager.get_tensor_parallel_world_size() > 1:
-        suffix = f"optimizer-tp-{ProcessGroupManager.get_tensor_parallel_rank()}"
+        suffix = f"optimizer-tp-{ProcessGroupManager.get_tensor_parallel_rank()}.pt"
     else:
         suffix = "optimizer.pt"
 
