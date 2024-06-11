@@ -104,7 +104,7 @@ def _get_layernorm(tensor_parallel_state_dicts: list[dict], prefix: str, normali
     output = {
         prefix + "weight": _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "weight")
     }
-    if normalization_function == "rmsnorm":
+    if normalization_function == "layernorm":
         output[prefix + "bias"] = _get_once_from_state_dicts_with_check(
             tensor_parallel_state_dicts, key=prefix + "bias"
         )
