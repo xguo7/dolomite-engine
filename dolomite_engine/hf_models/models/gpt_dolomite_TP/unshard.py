@@ -95,15 +95,19 @@ def _get_attention_weights(
         pass
     elif attention_head_type == AttentionHeadType.mqa:
         q_weight = _concatenate_tensors_from_state_dicts(
-            tensor_parallel_state_dicts, key=prefix + "q_attn.weight", dim=0
+            tensor_parallel_state_dicts, key=prefix + "c_attn.q_attn.weight", dim=0
         )
-        kv_weight = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "kv_attn.weight")
+        kv_weight = _get_once_from_state_dicts_with_check(
+            tensor_parallel_state_dicts, key=prefix + "c_attn.kv_attn.weight"
+        )
         output[prefix + "c_attn.weight"] = torch.cat([q_weight, kv_weight])
         if add_bias:
             q_bias = _concatenate_tensors_from_state_dicts(
-                tensor_parallel_state_dicts, key=prefix + "q_attn.bias", dim=0
+                tensor_parallel_state_dicts, key=prefix + "c_attn.q_attn.bias", dim=0
             )
-            kv_bias = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "kv_attn.bias")
+            kv_bias = _get_once_from_state_dicts_with_check(
+                tensor_parallel_state_dicts, key=prefix + "c_attn.kv_attn.bias"
+            )
             output[prefix + "c_attn.bias"] = torch.cat([q_bias, kv_bias])
     else:
         raise ValueError(f"unexpected attention_head_type ({attention_head_type})")
