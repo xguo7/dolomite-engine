@@ -39,8 +39,6 @@ class UnshardingTest(TestCommons):
             os.system(command)
 
             log = open(outfile, "r").readlines()
-            # for i in log:
-            #     print(i)
             last_line = log[-1].strip()
 
         error = last_line.lstrip("tensor(").rsplit(",")[0]
