@@ -32,9 +32,18 @@ def unshard(
     for layer_idx in range(config.n_layer):
         prefix = f"transformer.h.{layer_idx}."
 
+        # first layernorm
+        output_state_dict.update(
+            _get_layernorm(
+                tensor_parallel_state_dicts,
+                prefix=prefix + "ln_1",
+                normalization_function=config.normalization_function,
+            )
+        )
+
         # attention
         output_state_dict.update(
-            _get_attention_weights(
+            _get_attention(
                 tensor_parallel_state_dicts,
                 attention_head_type=attention_head_type,
                 add_bias=config.add_bias,
@@ -42,15 +51,33 @@ def unshard(
             )
         )
 
+        # second layernorm
+        output_state_dict.update(
+            _get_layernorm(
+                tensor_parallel_state_dicts,
+                prefix=prefix + "ln_2",
+                normalization_function=config.normalization_function,
+            )
+        )
+
         # mlp
         output_state_dict.update(
-            _get_mlp_weights(
+            _get_mlp(
                 tensor_parallel_state_dicts,
                 is_glu=is_glu(config.activation_function),
                 add_bias=config.add_bias,
                 prefix=prefix + "mlp.",
             )
         )
+
+    # final layernorm
+    output_state_dict.update(
+        _get_layernorm(
+            tensor_parallel_state_dicts,
+            prefix=prefix + "ln_f",
+            normalization_function=config.normalization_function,
+        )
+    )
 
     if not config.tie_word_embeddings:
         output_state_dict.update(
@@ -75,7 +102,18 @@ def _get_embeddings_or_lm_head(
     return {prefix: output}
 
 
-def _get_attention_weights(
+def _get_layernorm(tensor_parallel_state_dicts: list[dict], prefix: str, normalization_function: str) -> dict:
+    output = {
+        prefix + "weight": _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "weight")
+    }
+    if normalization_function == "rmsnorm":
+        output[prefix + "bias"] = _get_once_from_state_dicts_with_check(
+            tensor_parallel_state_dicts, key=prefix + "bias"
+        )
+    return output
+
+
+def _get_attention(
     tensor_parallel_state_dicts: list[dict], attention_head_type: AttentionHeadType, add_bias: bool, prefix: str
 ) -> dict:
     output = {
@@ -115,7 +153,7 @@ def _get_attention_weights(
     return output
 
 
-def _get_mlp_weights(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_bias: bool, prefix: str) -> dict:
+def _get_mlp(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_bias: bool, prefix: str) -> dict:
     output = {
         prefix
         + "c_proj.weight": _concatenate_tensors_from_state_dicts(
