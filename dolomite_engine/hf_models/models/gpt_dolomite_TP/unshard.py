@@ -1,4 +1,5 @@
 import torch
+from tqdm import trange
 
 from ...enums import AttentionHeadType, PositionEmbeddingType
 from ...modeling_utils import is_glu
@@ -29,7 +30,7 @@ def unshard(
         )
 
     # layers
-    for layer_idx in range(config.n_layer):
+    for layer_idx in trange(config.n_layer):
         # first layernorm
         output_state_dict.update(
             _get_layernorm(
