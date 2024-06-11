@@ -30,13 +30,11 @@ def unshard(
 
     # layers
     for layer_idx in range(config.n_layer):
-        prefix = f"transformer.h.{layer_idx}."
-
         # first layernorm
         output_state_dict.update(
             _get_layernorm(
                 tensor_parallel_state_dicts,
-                prefix=prefix + "ln_1.",
+                prefix=f"transformer.h.{layer_idx}.ln_1.",
                 normalization_function=config.normalization_function,
             )
         )
@@ -47,7 +45,7 @@ def unshard(
                 tensor_parallel_state_dicts,
                 attention_head_type=attention_head_type,
                 add_bias=config.add_bias,
-                prefix=prefix + "attn.",
+                prefix=f"transformer.h.{layer_idx}.attn.",
             )
         )
 
@@ -55,7 +53,7 @@ def unshard(
         output_state_dict.update(
             _get_layernorm(
                 tensor_parallel_state_dicts,
-                prefix=prefix + "ln_2.",
+                prefix=f"transformer.h.{layer_idx}.ln_2.",
                 normalization_function=config.normalization_function,
             )
         )
@@ -66,7 +64,7 @@ def unshard(
                 tensor_parallel_state_dicts,
                 is_glu=is_glu(config.activation_function),
                 add_bias=config.add_bias,
-                prefix=prefix + "mlp.",
+                prefix=f"transformer.h.{layer_idx}.mlp.",
             )
         )
 
@@ -74,7 +72,7 @@ def unshard(
     output_state_dict.update(
         _get_layernorm(
             tensor_parallel_state_dicts,
-            prefix=prefix + "ln_f.",
+            prefix=f"transformer.ln_f.",
             normalization_function=config.normalization_function,
         )
     )
