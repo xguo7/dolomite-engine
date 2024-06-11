@@ -88,4 +88,5 @@ with torch.inference_mode():
 
     if torch.distributed.get_rank() == 0:
         y = model(x)
-        print((y[0] - y_tp[0]).abs().max())
+        error = (y[0] - y_tp[0]).abs().max()
+        assert error < 5e-4, "outputs don't match for normal and tensor parallel model"

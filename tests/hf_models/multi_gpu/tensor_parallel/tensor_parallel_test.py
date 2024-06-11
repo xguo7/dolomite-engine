@@ -1,4 +1,4 @@
-import os
+import subprocess
 import tempfile
 
 import torch
@@ -31,21 +31,19 @@ class TensorParallelTest(TestCommons):
         gpus_per_node = torch.cuda.device_count()
 
         with tempfile.TemporaryDirectory() as tmp_path:
-            outfile = os.path.join(tmp_path, "out.log")
+            command = [
+                "torchrun",
+                "--nproc_per_node",
+                str(gpus_per_node),
+                "-m",
+                "tests.hf_models.multi_gpu.tensor_parallel.tensor_parallel_forward",
+                "--attention-head-type",
+                str(attention_head_type.value),
+                "--position-embedding-type",
+                str(position_embedding_type.value),
+                "--attention-implementation".str(attention_implementation),
+                "--tmp-path",
+                str(tmp_path),
+            ]
 
-            command = (
-                f"torchrun --nproc_per_node {gpus_per_node} -m tests.hf_models.multi_gpu.tensor_parallel.tensor_parallel_forward "
-                f"--attention-head-type {attention_head_type.value} "
-                f"--position-embedding-type {position_embedding_type.value} "
-                f"--attention-implementation {attention_implementation} "
-                f"--tmp-path {tmp_path} |& tee {outfile}"
-            )
-            os.system(command)
-
-            log = open(outfile, "r").readlines()
-            last_line = log[-1].strip()
-
-        error = last_line.lstrip("tensor(").rsplit(",")[0]
-        error = float(error)
-
-        assert error < 5e-4, "outputs don't match for normal and tensor parallel model"
+            subprocess.run(command, check=True)
