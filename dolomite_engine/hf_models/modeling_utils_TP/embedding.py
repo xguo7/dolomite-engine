@@ -2,21 +2,21 @@ import math
 from typing import Tuple
 
 import torch
-import torch.nn as nn
 
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
+from ..modeling_utils import ParameterizedEmbedding
 from ..utils import divide_if_divisible
 from .TP import ReduceFromTensorParallelRegion
 
 
-class Embedding_TP(nn.Embedding):
-    def __init__(self, num_embeddings: int, embedding_dim: int) -> None:
+class Embedding_TP(ParameterizedEmbedding):
+    def __init__(self, num_embeddings: int, embedding_dim: int, std: float = None) -> None:
         self.tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
         self.vocab_start_index, self.vocab_end_index, num_embeddings_per_tp_rank = get_tensor_parallel_vocab_info(
             num_embeddings
         )
 
-        super().__init__(num_embeddings_per_tp_rank, embedding_dim)
+        super().__init__(num_embeddings_per_tp_rank, embedding_dim, std=std)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.tp_world_size > 1:
