@@ -94,11 +94,7 @@ def unshard(
 
 
 def _get_embeddings_or_lm_head(
-    tensor_parallel_state_dicts: list[dict],
-    tensor_parallel_embeddings: bool,
-    prefix: str,
-    vocab_size: int,
-    make_vocab_size_divisible_by: int = 64,
+    tensor_parallel_state_dicts: list[dict], tensor_parallel_embeddings: bool, prefix: str, vocab_size: int
 ) -> dict:
     output = (
         _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=prefix, dim=0)
@@ -139,10 +135,14 @@ def _get_attention(
             tensor_parallel_state_dicts, key=prefix + "c_proj.bias"
         )
 
-    if attention_head_type == AttentionHeadType.mha:
-        pass
-    elif attention_head_type == AttentionHeadType.gqa:
-        pass
+    if attention_head_type in [AttentionHeadType.mha, AttentionHeadType.gqa]:
+        output[prefix + "c_attn.weight"] = _concatenate_tensors_from_state_dicts(
+            tensor_parallel_state_dicts, key=prefix + "c_attn.weight", dim=0
+        )
+        if add_bias:
+            output[prefix + "c_attn.bias"] = _concatenate_tensors_from_state_dicts(
+                tensor_parallel_state_dicts, key=prefix + "c_attn.bias", dim=0
+            )
     elif attention_head_type == AttentionHeadType.mqa:
         q_weight = _concatenate_tensors_from_state_dicts(
             tensor_parallel_state_dicts, key=prefix + "c_attn.q_attn.weight", dim=0
