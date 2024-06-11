@@ -13,7 +13,7 @@ from dolomite_engine.utils import (
     set_cuda_rng_tracker,
 )
 
-from ..test_common import TestCommons
+from ...test_common import TestCommons
 
 
 parser = argparse.ArgumentParser()

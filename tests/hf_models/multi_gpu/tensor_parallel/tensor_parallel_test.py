@@ -7,7 +7,7 @@ from parameterized import parameterized
 
 from dolomite_engine.hf_models import AttentionHeadType, PositionEmbeddingType
 
-from ..test_common import TestCommons
+from ...test_common import TestCommons
 
 
 class TensorParallelTest(TestCommons):
