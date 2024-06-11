@@ -61,7 +61,7 @@ def get_tensor_parallel_vocab_info(vocab_size: int, make_vocab_size_divisible_by
     divide_if_divisible(make_vocab_size_divisible_by, tp_world_size, "")
 
     vocab_size_per_tensor_parallel_rank = (
-        make_vocab_size_divisible_by * math.ceil(vocab_size // make_vocab_size_divisible_by)
+        make_vocab_size_divisible_by * math.ceil(vocab_size / make_vocab_size_divisible_by)
     ) // tp_world_size
 
     vocab_start_index = tp_rank * vocab_size_per_tensor_parallel_rank
