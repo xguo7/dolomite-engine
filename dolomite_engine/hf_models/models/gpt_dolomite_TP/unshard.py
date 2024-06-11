@@ -137,7 +137,7 @@ def _get_mlp_weights(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_
             output[prefix + "c_fc.bias"] = torch.cat(bias)
     else:
         output[prefix + "c_fc.weight"] = _concatenate_tensors_from_state_dicts(
-            tensor_parallel_state_dicts, key=v + "c_fc.weight", dim=0
+            tensor_parallel_state_dicts, key=prefix + "c_fc.weight", dim=0
         )
         if add_bias:
             output[prefix + "c_fc.bias"] = _concatenate_tensors_from_state_dicts(
