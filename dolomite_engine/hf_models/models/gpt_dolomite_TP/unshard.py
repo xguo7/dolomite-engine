@@ -106,11 +106,13 @@ def _get_embeddings_or_lm_head(
         else _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix)
     )
 
-    vocab_size = (vocab_size // make_vocab_size_divisible_by) * make_vocab_size_divisible_by
-    if output.shape[0] >= vocab_size:
-        output = output[:vocab_size, :]
-    else:
-        output = torch.cat([output, torch.zeros(vocab_size - output.shape[0], output.shape[1])])
+    # tensor parallel embeddings uses EmbeddingTP class so we need to trim the matrix
+    if tensor_parallel_embeddings:
+        vocab_size = (vocab_size // make_vocab_size_divisible_by) * make_vocab_size_divisible_by
+        if output.shape[0] >= vocab_size:
+            output = output[:vocab_size, :]
+        else:
+            output = torch.cat([output, torch.zeros(vocab_size - output.shape[0], output.shape[1])])
 
     return {prefix: output}
 
