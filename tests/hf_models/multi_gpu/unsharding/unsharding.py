@@ -56,6 +56,7 @@ model_tp = GPTDolomiteForCausalLM_TP.from_pretrained(
 )
 
 tp_state_dict = model_tp.state_dict()
+tp_state_dict = {key: value.to("cpu") for key, value in tp_state_dict.items()}
 tp_path = os.path.join(args.tmp_path, "tp", f"model-{tp_rank}.pt")
 os.makedirs(os.path.dirname(tp_path), exist_ok=True)
 torch.save(tp_state_dict, tp_path)
