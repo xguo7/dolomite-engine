@@ -34,7 +34,7 @@ class TensorParallelTest(TestCommons):
             outfile = os.path.join(tmp_path, "out.log")
 
             command = (
-                f"torchrun --nproc_per_node {gpus_per_node} -m tests.hf_models.multi_gpu.tensor_parallel_forward "
+                f"torchrun --nproc_per_node {gpus_per_node} -m tests.hf_models.multi_gpu.tensor_parallel.tensor_parallel_forward "
                 f"--attention-head-type {attention_head_type.value} "
                 f"--position-embedding-type {position_embedding_type.value} "
                 f"--attention-implementation {attention_implementation} "
