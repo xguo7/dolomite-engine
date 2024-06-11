@@ -54,7 +54,7 @@ class Embedding_TP(ParameterizedEmbedding):
         self.load_state_dict({"weight": weight})
 
 
-def get_tensor_parallel_vocab_info(vocab_size: int, make_vocab_size_divisible_by: int = 64) -> Tuple[int, int]:
+def get_tensor_parallel_vocab_info(vocab_size: int, make_vocab_size_divisible_by: int = 64) -> tuple[int, int, int]:
     tp_rank = ProcessGroupManager.get_tensor_parallel_rank()
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
 

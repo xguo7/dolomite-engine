@@ -108,11 +108,8 @@ def _get_embeddings_or_lm_head(
 
     # tensor parallel embeddings uses EmbeddingTP class so we need to trim the matrix
     if tensor_parallel_embeddings:
-        vocab_size = (vocab_size // make_vocab_size_divisible_by) * make_vocab_size_divisible_by
-        if output.shape[0] >= vocab_size:
-            output = output[:vocab_size, :]
-        else:
-            output = torch.cat([output, torch.zeros(vocab_size - output.shape[0], output.shape[1])])
+        assert output.shape[0] >= vocab_size
+        output = output[:vocab_size, :]
 
     return {prefix: output}
 
