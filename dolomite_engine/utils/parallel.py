@@ -37,12 +37,13 @@ class ProcessGroupManager:
         data_parallel_size: int = None,
         zero_hpz_partition_size: int = None,
         timeout_minutes: int = None,
+        backend: str = "nccl",
     ) -> None:
         if timeout_minutes is not None:
             timeout_minutes = timedelta(timeout_minutes)
 
         torch.distributed.init_process_group(
-            "nccl",
+            backend=backend,
             rank=ProcessGroupManager.get_global_rank(),
             world_size=ProcessGroupManager.get_world_size(),
             timeout=timeout_minutes,
@@ -70,6 +71,10 @@ class ProcessGroupManager:
 
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         torch.cuda.set_device(local_rank)
+
+    @staticmethod
+    def is_initialized() -> bool:
+        return torch.distributed.is_initialized()
 
     @staticmethod
     def get_mesh() -> int:
