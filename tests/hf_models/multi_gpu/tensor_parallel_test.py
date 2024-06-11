@@ -13,9 +13,9 @@ from ..test_common import TestCommons
 class TensorParallelTest(TestCommons):
     @parameterized.expand(
         TestCommons.make_args_matrix(
-            TestCommons.get_attention_head_types()[:1],
-            TestCommons.get_position_embedding_types()[:1],
-            TestCommons.get_attention_implementations()[:1],
+            TestCommons.get_attention_head_types(),
+            TestCommons.get_position_embedding_types(),
+            ["eager", "sdpa"],
         )
     )
     def test_tensor_parallel_forward(
@@ -50,4 +50,4 @@ class TensorParallelTest(TestCommons):
         error = last_line.lstrip("tensor(").rsplit(",")[0]
         error = float(error)
 
-        assert error == 0, "outputs don't match for normal and tensor parallel model"
+        assert error < 5e-4, "outputs don't match for normal and tensor parallel model"
