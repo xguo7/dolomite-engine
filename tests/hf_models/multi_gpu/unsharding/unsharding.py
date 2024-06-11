@@ -39,7 +39,7 @@ if AttentionHeadType(args.attention_head_type) == AttentionHeadType.gqa:
 config = GPTDolomiteConfig(
     attention_head_type=args.attention_head_type,
     n_layer=1,
-    position_embedding_type=args.position_embedding_type,
+    position_embedding_type="learned_absolute",
     num_key_value_heads=num_key_value_heads,
     add_bias=False,
     n_embd=128,
@@ -47,7 +47,7 @@ config = GPTDolomiteConfig(
 )
 
 if tp_rank == 0:
-    model = TestCommons.from_config(None, config, attn_implementation=args.attention_implementation)
+    model = TestCommons.from_config(None, config)
     model.save_pretrained(args.tmp_path, safe_serialization=True)
 
 torch.distributed.barrier()
