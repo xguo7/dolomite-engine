@@ -38,14 +38,17 @@ def unshard(
                 tensor_parallel_state_dicts,
                 attention_head_type=attention_head_type,
                 add_bias=config.add_bias,
-                key=prefix,
+                prefix=prefix + "attn.",
             )
         )
 
         # mlp
         output_state_dict.update(
             _get_mlp_weights(
-                tensor_parallel_state_dicts, is_glu=is_glu(config.activation_function), add_bias=config.add_bias
+                tensor_parallel_state_dicts,
+                is_glu=is_glu(config.activation_function),
+                add_bias=config.add_bias,
+                prefix=prefix + "mlp.",
             )
         )
 
@@ -54,7 +57,7 @@ def unshard(
             _get_embeddings_or_lm_head(
                 tensor_parallel_state_dicts,
                 tensor_parallel_embeddings=tensor_parallel_embeddings,
-                key="lm_head.weight",
+                prefix="lm_head.weight",
             )
         )
 
@@ -62,28 +65,28 @@ def unshard(
 
 
 def _get_embeddings_or_lm_head(
-    tensor_parallel_state_dicts: list[dict], tensor_parallel_embeddings: bool, key: str
+    tensor_parallel_state_dicts: list[dict], tensor_parallel_embeddings: bool, prefix: str
 ) -> dict:
     output = (
-        _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=key, dim=0)
+        _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=prefix, dim=0)
         if tensor_parallel_embeddings
-        else _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=key)
+        else _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix)
     )
-    return {key: output}
+    return {prefix: output}
 
 
 def _get_attention_weights(
-    tensor_parallel_state_dicts: list[dict], attention_head_type: AttentionHeadType, add_bias: bool, key: str
+    tensor_parallel_state_dicts: list[dict], attention_head_type: AttentionHeadType, add_bias: bool, prefix: str
 ) -> dict:
     output = {
-        key
+        prefix
         + "c_proj.weight": _concatenate_tensors_from_state_dicts(
-            tensor_parallel_state_dicts, key=key + "c_proj.weight", dim=1
+            tensor_parallel_state_dicts, key=prefix + "c_proj.weight", dim=1
         )
     }
     if add_bias:
-        output[key + "c_proj.bias"] = _get_once_from_state_dicts_with_check(
-            tensor_parallel_state_dicts, key=key + "c_proj.bias"
+        output[prefix + "c_proj.bias"] = _get_once_from_state_dicts_with_check(
+            tensor_parallel_state_dicts, key=prefix + "c_proj.bias"
         )
 
     if attention_head_type == AttentionHeadType.mha:
@@ -91,46 +94,50 @@ def _get_attention_weights(
     elif attention_head_type == AttentionHeadType.gqa:
         pass
     elif attention_head_type == AttentionHeadType.mqa:
-        q_weight = _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=key + "q_attn.weight", dim=0)
-        kv_weight = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key + "kv_attn.weight")
-        output[key + "c_attn.weight"] = torch.cat([q_weight, kv_weight])
+        q_weight = _concatenate_tensors_from_state_dicts(
+            tensor_parallel_state_dicts, key=prefix + "q_attn.weight", dim=0
+        )
+        kv_weight = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "kv_attn.weight")
+        output[prefix + "c_attn.weight"] = torch.cat([q_weight, kv_weight])
         if add_bias:
-            q_bias = _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=key + "q_attn.bias", dim=0)
-            kv_bias = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key + "kv_attn.bias")
-            output[key + "c_attn.bias"] = torch.cat([q_bias, kv_bias])
+            q_bias = _concatenate_tensors_from_state_dicts(
+                tensor_parallel_state_dicts, key=prefix + "q_attn.bias", dim=0
+            )
+            kv_bias = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix + "kv_attn.bias")
+            output[prefix + "c_attn.bias"] = torch.cat([q_bias, kv_bias])
     else:
         raise ValueError(f"unexpected attention_head_type ({attention_head_type})")
 
     return output
 
 
-def _get_mlp_weights(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_bias: bool, key: str) -> dict:
+def _get_mlp_weights(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_bias: bool, prefix: str) -> dict:
     output = {
-        key
+        prefix
         + "c_proj.weight": _concatenate_tensors_from_state_dicts(
-            tensor_parallel_state_dicts, key=key + "c_proj.weight", dim=1
+            tensor_parallel_state_dicts, key=prefix + "c_proj.weight", dim=1
         )
     }
     if add_bias:
-        output[key + "c_proj.bias"] = _get_once_from_state_dicts_with_check(
-            tensor_parallel_state_dicts, key=key + "c_proj.bias"
+        output[prefix + "c_proj.bias"] = _get_once_from_state_dicts_with_check(
+            tensor_parallel_state_dicts, key=prefix + "c_proj.bias"
         )
 
     if is_glu:
-        weights = [state_dict[key + "c_fc.weight"].chunk(2) for state_dict in tensor_parallel_state_dicts]
+        weights = [state_dict[prefix + "c_fc.weight"].chunk(2) for state_dict in tensor_parallel_state_dicts]
         weights = (torch.cat([w[0] for w in weights]), torch.cat([w[1] for w in weights]))
-        output[key + "c_fc.weight"] = torch.cat(weights)
+        output[prefix + "c_fc.weight"] = torch.cat(weights)
         if add_bias:
-            bias = [state_dict[key + "c_fc.bias"].chunk(2) for state_dict in tensor_parallel_state_dicts]
+            bias = [state_dict[prefix + "c_fc.bias"].chunk(2) for state_dict in tensor_parallel_state_dicts]
             bias = (torch.cat([b[0] for b in bias]), torch.cat([b[1] for b in bias]))
-            output[key + "c_fc.bias"] = torch.cat(bias)
+            output[prefix + "c_fc.bias"] = torch.cat(bias)
     else:
-        output[key + "c_fc.weight"] = _concatenate_tensors_from_state_dicts(
-            tensor_parallel_state_dicts, key=key + "c_fc.weight", dim=0
+        output[prefix + "c_fc.weight"] = _concatenate_tensors_from_state_dicts(
+            tensor_parallel_state_dicts, key=v + "c_fc.weight", dim=0
         )
         if add_bias:
-            output[key + "c_fc.bias"] = _concatenate_tensors_from_state_dicts(
-                tensor_parallel_state_dicts, key=key + "c_fc.bias", dim=0
+            output[prefix + "c_fc.bias"] = _concatenate_tensors_from_state_dicts(
+                tensor_parallel_state_dicts, key=prefix + "c_fc.bias", dim=0
             )
 
     return output
