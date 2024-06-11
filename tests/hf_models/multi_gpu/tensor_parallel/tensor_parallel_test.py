@@ -41,7 +41,8 @@ class TensorParallelTest(TestCommons):
                 str(attention_head_type.value),
                 "--position-embedding-type",
                 str(position_embedding_type.value),
-                "--attention-implementation".str(attention_implementation),
+                "--attention-implementation",
+                str(attention_implementation),
                 "--tmp-path",
                 str(tmp_path),
             ]
