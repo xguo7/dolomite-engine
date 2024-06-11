@@ -36,7 +36,7 @@ def unshard(
         output_state_dict.update(
             _get_layernorm(
                 tensor_parallel_state_dicts,
-                prefix=prefix + "ln_1",
+                prefix=prefix + "ln_1.",
                 normalization_function=config.normalization_function,
             )
         )
@@ -55,7 +55,7 @@ def unshard(
         output_state_dict.update(
             _get_layernorm(
                 tensor_parallel_state_dicts,
-                prefix=prefix + "ln_2",
+                prefix=prefix + "ln_2.",
                 normalization_function=config.normalization_function,
             )
         )
@@ -74,7 +74,7 @@ def unshard(
     output_state_dict.update(
         _get_layernorm(
             tensor_parallel_state_dicts,
-            prefix=prefix + "ln_f",
+            prefix=prefix + "ln_f.",
             normalization_function=config.normalization_function,
         )
     )
