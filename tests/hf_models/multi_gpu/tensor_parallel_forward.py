@@ -1,4 +1,5 @@
 import argparse
+import os
 import random
 
 import torch
@@ -23,7 +24,7 @@ parser.add_argument("--tmp-path", type=str)
 args = parser.parse_args()
 
 
-ProcessGroupManager(tensor_parallel_size=8)
+ProcessGroupManager(tensor_parallel_size=int(os.getenv("WORLD_SIZE")))
 
 # this is needed when combining different kinds of parallelism for training
 # leave as is if unaware of what you are doing
@@ -66,9 +67,6 @@ with torch.device("meta"):
     model_tp = GPTDolomiteForCausalLM_TP(
         config, tensor_parallel_embeddings=False, attn_implementation=args.attention_implementation
     )
-
-    if torch.distributed.get_rank() == 0:
-        print(model_tp)
 
 # copy to device without copying storage
 model_tp = model_tp.to_empty(device=torch.cuda.current_device())

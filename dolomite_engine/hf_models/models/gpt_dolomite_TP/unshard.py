@@ -13,14 +13,18 @@ def unshard(
 
     # word embeddings
     output_state_dict = _get_embeddings_or_lm_head(
-        tensor_parallel_state_dicts, tensor_parallel_embeddings, "transformer.wte.weight"
+        tensor_parallel_state_dicts,
+        tensor_parallel_embeddings=tensor_parallel_embeddings,
+        key="transformer.wte.weight",
     )
 
     # positional embeddings if using learned positional embeddings
     if position_embedding_type == PositionEmbeddingType.learned_absolute:
         output_state_dict.update(
             _get_embeddings_or_lm_head(
-                tensor_parallel_state_dicts, tensor_parallel_embeddings, "transformer.wpe.weight"
+                tensor_parallel_state_dicts,
+                tensor_parallel_embeddings=tensor_parallel_embeddings,
+                key="transformer.wpe.weight",
             )
         )
 
@@ -87,14 +91,13 @@ def _get_attention_weights(
     elif attention_head_type == AttentionHeadType.mqa:
         q_weight = _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=key + "q_attn.weight", dim=0)
         kv_weight = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key + "kv_attn.weight")
-
         output[key + "c_attn.weight"] = torch.cat([q_weight, kv_weight])
-
         if add_bias:
             q_bias = _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=key + "q_attn.bias", dim=0)
             kv_bias = _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key + "kv_attn.bias")
-
             output[key + "c_attn.bias"] = torch.cat([q_bias, kv_bias])
+    else:
+        raise ValueError(f"unexpected attention_head_type ({attention_head_type})")
 
     return output
 
@@ -112,7 +115,13 @@ def _get_mlp_weights(tensor_parallel_state_dicts: list[dict], is_glu: bool, add_
         )
 
     if is_glu:
-        pass
+        weights = [state_dict[key + "c_fc.weight"].chunk(2) for state_dict in tensor_parallel_state_dicts]
+        weights = (torch.cat([w[0] for w in weights]), torch.cat([w[1] for w in weights]))
+        output[key + "c_fc.weight"] = torch.cat(weights)
+        if add_bias:
+            bias = [state_dict[key + "c_fc.bias"].chunk(2) for state_dict in tensor_parallel_state_dicts]
+            bias = (torch.cat([b[0] for b in bias]), torch.cat([b[1] for b in bias]))
+            output[key + "c_fc.bias"] = torch.cat(bias)
     else:
         output[key + "c_fc.weight"] = _concatenate_tensors_from_state_dicts(
             tensor_parallel_state_dicts, key=key + "c_fc.weight", dim=0
@@ -134,7 +143,7 @@ def _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts: list[dict
 def _get_once_from_state_dicts_with_check(
     tensor_parallel_state_dicts: list[dict], key: str, check_equal: bool = True
 ) -> torch.Tensor:
-    output = tensor_parallel_state_dicts[0][key]
+    output: torch.Tensor = tensor_parallel_state_dicts[0][key]
     if check_equal:
         for state_dict in tensor_parallel_state_dicts[1:]:
             assert output.equal(state_dict[key])
