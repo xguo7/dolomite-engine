@@ -17,6 +17,7 @@ def unshard(
         tensor_parallel_state_dicts,
         tensor_parallel_embeddings=tensor_parallel_embeddings,
         prefix="transformer.wte.weight",
+        vocab_size=config.vocab_size,
     )
 
     # positional embeddings if using learned positional embeddings
@@ -26,6 +27,7 @@ def unshard(
                 tensor_parallel_state_dicts,
                 tensor_parallel_embeddings=tensor_parallel_embeddings,
                 prefix="transformer.wpe.weight",
+                vocab_size=config.n_positions,
             )
         )
 
@@ -84,6 +86,7 @@ def unshard(
                 tensor_parallel_state_dicts,
                 tensor_parallel_embeddings=tensor_parallel_embeddings,
                 prefix="lm_head.weight",
+                vocab_size=config.vocab_size,
             )
         )
 
@@ -91,13 +94,24 @@ def unshard(
 
 
 def _get_embeddings_or_lm_head(
-    tensor_parallel_state_dicts: list[dict], tensor_parallel_embeddings: bool, prefix: str
+    tensor_parallel_state_dicts: list[dict],
+    tensor_parallel_embeddings: bool,
+    prefix: str,
+    vocab_size: int,
+    make_vocab_size_divisible_by: int = 64,
 ) -> dict:
     output = (
         _concatenate_tensors_from_state_dicts(tensor_parallel_state_dicts, key=prefix, dim=0)
         if tensor_parallel_embeddings
         else _get_once_from_state_dicts_with_check(tensor_parallel_state_dicts, key=prefix)
     )
+
+    vocab_size = (vocab_size // make_vocab_size_divisible_by) * make_vocab_size_divisible_by
+    if output.shape[0] >= vocab_size:
+        output = output[:vocab_size, :]
+    else:
+        output = torch.cat([output, torch.zeros(vocab_size - output.shape[0], output.shape[1])])
+
     return {prefix: output}
 
 
