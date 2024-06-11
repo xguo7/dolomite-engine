@@ -58,6 +58,8 @@ def unshard(
             )
         )
 
+    return output_state_dict
+
 
 def _get_embeddings_or_lm_head(
     tensor_parallel_state_dicts: list[dict], tensor_parallel_embeddings: bool, key: str
