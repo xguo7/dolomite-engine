@@ -36,6 +36,10 @@ TEST_HIDDEN_SIZES = [
 
 
 class NormTest(TestCommons):
+    def _skip_test_if_apex_unavailable(self) -> None:
+        if not is_apex_available():
+            self.skipTest("skipping test because apex is not installed")
+
     def _test_equivalance(
         self, device: torch.device, hidden_size: int, normalization_function: str, normalization_implementation: str
     ) -> None:
