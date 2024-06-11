@@ -135,10 +135,7 @@ class Attention_TP(Attention):
     def load_from_safetensors_weights_manager(
         self, safetensors_weight_manager: SafeTensorsWeightsManager, prefix: str = ""
     ) -> None:
-        self.c_attn.load_from_safetensors_weights_manager(
-            safetensors_weight_manager,
-            prefix=prefix if self.attention_head_type == AttentionHeadType.mqa else prefix + "c_attn.",
-        )
+        self.c_attn.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix=prefix + "c_attn.")
         self.c_proj.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix=prefix + "c_proj.")
 
     def _prepare_qkv_for_forward_mqa(
@@ -212,14 +209,14 @@ class _MQA_QueryKeyValueProjection(nn.Module):
         start_index = tp_rank * hidden_size_per_rank
         end_index = (tp_rank + 1) * hidden_size_per_rank
 
-        weight = safetensors_weight_manager.get_slice(prefix + "c_attn.weight")
+        weight = safetensors_weight_manager.get_slice(prefix + "weight")
         q_attn_state_dict = {"weight": weight[start_index:end_index, :]}
         kv_attn_state_dict = {
             "weight": weight[self.global_hidden_size : self.global_hidden_size + 2 * self.head_dim, :]
         }
 
         if self.add_bias:
-            bias = safetensors_weight_manager.get_slice(prefix + "c_attn.bias")
+            bias = safetensors_weight_manager.get_slice(prefix + "bias")
             q_attn_state_dict["bias"] = bias[start_index:end_index]
             kv_attn_state_dict["bias"] = bias[self.global_hidden_size : self.global_hidden_size + 2 * self.head_dim]
 
