@@ -15,7 +15,7 @@ def unshard(
     output_state_dict = _get_embeddings_or_lm_head(
         tensor_parallel_state_dicts,
         tensor_parallel_embeddings=tensor_parallel_embeddings,
-        key="transformer.wte.weight",
+        prefix="transformer.wte.weight",
     )
 
     # positional embeddings if using learned positional embeddings
@@ -24,7 +24,7 @@ def unshard(
             _get_embeddings_or_lm_head(
                 tensor_parallel_state_dicts,
                 tensor_parallel_embeddings=tensor_parallel_embeddings,
-                key="transformer.wpe.weight",
+                prefix="transformer.wpe.weight",
             )
         )
 
