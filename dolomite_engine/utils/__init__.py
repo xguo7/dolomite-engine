@@ -4,7 +4,7 @@ import torch
 import torch.distributed
 
 from .hf_hub import download_repo
-from .logging import log_rank_0, print_rank_0, print_ranks_all, set_logger
+from .logger import log_rank_0, print_rank_0, print_ranks_all, set_logger
 from .mixed_precision import normalize_dtype_string, string_to_torch_dtype, torch_dtype_to_string
 from .packages import (
     is_apex_available,
@@ -42,7 +42,7 @@ def init_distributed(
         timeout_minutes=timeout_minutes,
     )
 
-    log_rank_0(logging.INFO, process_group_manager)
+    log_rank_0(logger.INFO, process_group_manager)
 
 
 def setup_tf32(use_tf32: bool = True) -> None:
