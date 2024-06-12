@@ -195,6 +195,7 @@ class ProcessGroupManager:
         result = str(self.get_mesh())
         result += f"tensor parallel size = {self.get_tensor_parallel_world_size()}"
         result += f"data parallel size = {self.get_data_parallel_world_size()}"
+        return result
 
     def __str__(self) -> str:
         return repr(self)
