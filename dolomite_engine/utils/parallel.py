@@ -4,7 +4,7 @@ from typing import Callable
 
 import torch
 import torch.distributed
-from torch.distributed import ProcessGroup, get_process_group_ranks
+from torch.distributed import ProcessGroup
 from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
 
 
@@ -191,14 +191,8 @@ class ProcessGroupManager:
         mesh_array = mesh_array.view(_ZERO_HPZ_PARTITION_SIZE, -1)
         return DeviceMesh("cuda", mesh=mesh_array, mesh_dim_names=("ddp", "zero"))
 
-    def __repr__(self) -> str:
-        result = str(self.get_mesh())
-        result += f"tensor parallel size = {self.get_tensor_parallel_world_size()}"
-        result += f"data parallel size = {self.get_data_parallel_world_size()}"
-        return result
-
     def __str__(self) -> str:
-        return repr(self)
+        return str(self.get_mesh())
 
 
 def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable:
