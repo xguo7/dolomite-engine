@@ -185,12 +185,11 @@ class ProcessGroupManager:
 
     @staticmethod
     def get_data_parallel_mesh_for_hsdp() -> DeviceMesh:
-        group = ProcessGroupManager.get_data_parallel_group()
-        ranks = get_process_group_ranks(group)
-        ranks = torch.tensor(ranks).view(
-            (_ZERO_HPZ_PARTITION_SIZE, ProcessGroupManager.get_data_parallel_world_size() // _ZERO_HPZ_PARTITION_SIZE)
-        )
-        return DeviceMesh("cuda", mesh=ranks, mesh_dim_names=("zero_dp", "ddp"))
+        global _ZERO_HPZ_PARTITION_SIZE
+
+        mesh_array = ProcessGroupManager.get_data_parallel_mesh().mesh
+        mesh_array = mesh_array.view(_ZERO_HPZ_PARTITION_SIZE, -1)
+        return DeviceMesh("cuda", mesh=mesh_array, mesh_dim_names=("ddp", "zero"))
 
     def __repr__(self) -> str:
         result = str(self.get_mesh())
