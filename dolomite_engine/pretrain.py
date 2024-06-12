@@ -107,7 +107,10 @@ def train(
     sequence_length = args.datasets[0].class_args.get("sequence_length")
     model_flops = model.get_model_tflops(micro_batch_size * gradient_accumulation_steps, sequence_length)
     tokens_per_batch = (
-        micro_batch_size * gradient_accumulation_steps * ProcessGroupManager.get_world_size() * sequence_length
+        micro_batch_size
+        * gradient_accumulation_steps
+        * ProcessGroupManager.get_data_parallel_world_size()
+        * sequence_length
     )
 
     start_time = time.perf_counter()
@@ -177,7 +180,7 @@ def train(
                     "consumed_samples": global_step
                     * micro_batch_size
                     * gradient_accumulation_steps
-                    * ProcessGroupManager.get_world_size()
+                    * ProcessGroupManager.get_data_parallel_world_size()
                 },
             )
 

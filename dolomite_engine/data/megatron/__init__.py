@@ -54,9 +54,13 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
 
         source_broadcast_mapping = _get_source_broadcast_mapping()
 
+        # only build dataloader on first rank of each node
         is_built_on_rank = ProcessGroupManager.get_global_rank() == node_rank * num_ranks_per_node
     else:
-        is_built_on_rank = True
+        # only build dataloader on first rank of each TP group
+        is_built_on_rank = (
+            ProcessGroupManager.get_global_rank() == ProcessGroupManager.get_tensor_parallel_first_rank()
+        )
 
     gpt_dataset_builder = BlendedMegatronDatasetBuilder(
         GPTDataset,
@@ -192,8 +196,8 @@ def get_megatron_gpt_dataloaders(args: TrainingArgs, tokenizer: AutoTokenizer, c
                 total_samples=len(dataset),
                 consumed_samples=consumed_samples,
                 micro_batch_size=micro_batch_size,
-                num_replicas=ProcessGroupManager.get_world_size(),
-                rank=ProcessGroupManager.get_global_rank(),
+                num_replicas=ProcessGroupManager.get_data_parallel_world_size(),
+                rank=ProcessGroupManager.get_data_parallel_rank(),
             )
 
             dataloader = ResumableDataLoader(
@@ -216,16 +220,16 @@ def _get_train_val_test_samples(
     eval_interval: int,
     eval_steps: int,
 ) -> Tuple[int]:
-    train_samples = (
-        num_training_steps * micro_batch_size * gradient_accumulation_steps * ProcessGroupManager.get_world_size()
-    )
+    dp_world_size = ProcessGroupManager.get_data_parallel_world_size()
+
+    train_samples = num_training_steps * micro_batch_size * gradient_accumulation_steps * dp_world_size
     val_samples = (
         (num_training_steps // eval_interval + 1)
         * eval_steps
         * micro_batch_size
         * gradient_accumulation_steps
-        * ProcessGroupManager.get_world_size()
+        * dp_world_size
     )
-    test_samples = eval_steps * micro_batch_size * gradient_accumulation_steps * ProcessGroupManager.get_world_size()
+    test_samples = eval_steps * micro_batch_size * gradient_accumulation_steps * dp_world_size
 
     return train_samples, val_samples, test_samples

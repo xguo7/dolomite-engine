@@ -41,7 +41,7 @@ class BlendedMegatronDatasetConfig:
         path_to_cache (str): Where all re-useable dataset indices are to be cached.
     """
 
-    is_built_on_rank: Callable
+    is_built_on_rank: bool
 
     random_seed: int
 
@@ -67,7 +67,7 @@ class BlendedMegatronDatasetConfig:
         """
 
         if ProcessGroupManager.get_global_rank() == 0:
-            assert self.is_built_on_rank, "is_built_on_rank must return True when global rank = 0"
+            assert self.is_built_on_rank, "is_built_on_rank must be True when global rank = 0"
 
         if self.blend_per_split is not None and any(self.blend_per_split):
             assert self.blend is None, "blend and blend_per_split are incompatible"
