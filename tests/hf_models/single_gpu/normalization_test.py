@@ -59,10 +59,6 @@ class NormTest(TestCommons):
 
         self.assert_equal_tensors(torch_output, custom_output, False)
 
-    def _skip_test_if_apex_unavailable(self) -> None:
-        if not is_apex_available():
-            self.skipTest("Apex is not installed")
-
     @parameterized.expand(TestCommons.make_args_matrix([torch.device("cuda")], TEST_HIDDEN_SIZES))
     def test_torch_layernorm_apex_layernorm_equivalence(self, device: torch.device, hidden_size: int) -> None:
         self._skip_test_if_apex_unavailable()
