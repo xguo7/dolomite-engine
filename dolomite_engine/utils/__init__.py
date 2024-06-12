@@ -42,7 +42,7 @@ def init_distributed(
         timeout_minutes=timeout_minutes,
     )
 
-    log_rank_0(logger.INFO, process_group_manager)
+    log_rank_0(logging.INFO, process_group_manager)
 
 
 def setup_tf32(use_tf32: bool = True) -> None:
