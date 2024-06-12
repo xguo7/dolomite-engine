@@ -192,6 +192,11 @@ class ProcessGroupManager:
         )
         return DeviceMesh("cuda", mesh=ranks, mesh_dim_names=("zero_dp", "ddp"))
 
+    def __repr__(self) -> str:
+        result = str(self.get_mesh())
+        result += f"tensor parallel size = {self.get_tensor_parallel_world_size()}"
+        result += f"data parallel size = {self.get_data_parallel_world_size()}"
+
 
 def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable:
     """wraps a function to run on a single rank, returns a no-op for other ranks

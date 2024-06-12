@@ -1,3 +1,5 @@
+import logging
+
 import torch
 import torch.distributed
 
@@ -33,12 +35,14 @@ def init_distributed(
         timeout_minutes (int, optional): distributed timeout in minutes. Defaults to None.
     """
 
-    ProcessGroupManager(
+    process_group_manager = ProcessGroupManager(
         tensor_parallel_size=tensor_parallel_size,
         data_parallel_size=data_parallel_size,
         zero_hpz_partition_size=zero_hpz_partition_size,
         timeout_minutes=timeout_minutes,
     )
+
+    log_rank_0(logging.INFO, process_group_manager)
 
 
 def setup_tf32(use_tf32: bool = True) -> None:

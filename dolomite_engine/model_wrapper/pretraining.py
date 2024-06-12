@@ -20,7 +20,7 @@ class ModelWrapperForPretraining(ModelWrapper):
 
         self.micro_batch_size = args.training_parameters.micro_batch_size
         self.sequence_length = args.datasets[0].class_args.get("sequence_length")
-        self.tensor_parallel_embeddings = args.distributed_args.tensor_parallel_embeddings
+        self.vocab_size = self.config.vocab_size
 
     def forward(self, batch: dict) -> torch.Tensor:
         """forward function for a batch
