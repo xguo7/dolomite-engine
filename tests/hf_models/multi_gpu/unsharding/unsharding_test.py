@@ -12,7 +12,7 @@ from ...test_common import TestCommons
 
 class UnshardingTest(TestCommons):
     @parameterized.expand(
-        TestCommons.make_args_matrix([TestCommons.get_attention_head_types()], ["gelu", "geglu"], [False, True])
+        TestCommons.make_args_matrix(TestCommons.get_attention_head_types(), ["gelu", "geglu"], [False, True])
     )
     def test_tensor_parallel_forward(
         self, attention_head_type: AttentionHeadType, activation_function: str, tensor_parallel_embeddings: bool
