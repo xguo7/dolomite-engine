@@ -196,6 +196,9 @@ class ProcessGroupManager:
         result += f"tensor parallel size = {self.get_tensor_parallel_world_size()}"
         result += f"data parallel size = {self.get_data_parallel_world_size()}"
 
+    def __str__(self) -> str:
+        return repr(self)
+
 
 def run_rank_n(func: Callable, rank: int = 0, barrier: bool = False) -> Callable:
     """wraps a function to run on a single rank, returns a no-op for other ranks
