@@ -317,7 +317,7 @@ def _get_lr_scheduler_path(path: str) -> str:
 
 
 def _get_dataloader_path(path: str) -> str:
-    return os.path.join(path, "dataloader", f"dataloader-{ProcessGroupManager.get_global_rank()}.pt")
+    return os.path.join(path, "dataloader", f"dataloader-{ProcessGroupManager.get_data_parallel_rank()}.pt")
 
 
 def _get_rng_state_path(path: str) -> str:
