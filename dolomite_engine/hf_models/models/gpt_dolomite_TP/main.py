@@ -9,7 +9,12 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ....utils import SafeTensorsWeightsManager
 from ...modeling_utils import ParameterizedLinear
-from ...modeling_utils_TP import CopyToTensorParallelRegion, GatherFromTensorParallelRegion, TensorParallelCrossEntropy
+from ...modeling_utils_TP import (
+    CopyToTensorParallelRegion,
+    GatherFromTensorParallelRegion,
+    LMHead_TP,
+    TensorParallelCrossEntropy,
+)
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteForCausalLM, GPTDolomitePreTrainedModel
 from .base import GPTDolomiteModel_TP, GPTDolomitePreTrainedModel_TP
 
@@ -24,12 +29,12 @@ class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCau
         self.transformer = GPTDolomiteModel_TP(config, tensor_parallel_embeddings=tensor_parallel_embeddings, **kwargs)
 
         if not self._tied_word_embeddings:
-            self.lm_head = ParameterizedLinear(
-                config.n_embd,
-                self.transformer.wte.num_embeddings if self.tensor_parallel_embeddings else config.vocab_size,
-                bias=False,
-                std=config.initializer_range,
-            )
+            if self.tensor_parallel_embeddings:
+                self.lm_head = LMHead_TP(config.vocab_size, config.n_embd, std=config.initializer_range)
+            else:
+                self.lm_head = ParameterizedLinear(
+                    config.n_embd, config.vocab_size, bias=False, std=config.initializer_range
+                )
 
         self.m_width = config.m_width
         self.upcast_logits_for_loss = config.upcast_logits_for_loss
@@ -126,12 +131,12 @@ class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCau
     ) -> None:
         self.transformer.load_from_safetensors_weights_manager(safetensors_weight_manager, prefix + "transformer.")
 
-        if self.tensor_parallel_embeddings:
-            if not self._tied_word_embeddings:
+        if not self._tied_word_embeddings:
+            if self.tensor_parallel_embeddings:
+                self.lm_head.load_from_safetensors_weights_manager(safetensors_weight_manager, "lm_head.")
+            else:
                 state_dict = {"weight": safetensors_weight_manager.get_tensor(prefix + "transformer.wte.weight")}
                 self.lm_head.load_state_dict(state_dict)
-        else:
-            self.post_init()
 
     @classmethod
     def from_pretrained(
@@ -156,7 +161,5 @@ class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCau
         # this avoids loading multiple copies of the parameters in CPU memory
         safetensors_weight_manager = SafeTensorsWeightsManager(model_name)
         model.load_from_safetensors_weights_manager(safetensors_weight_manager)
-
-        # TODO call self.post_init() for non-TP vocab matrix here
 
         return model

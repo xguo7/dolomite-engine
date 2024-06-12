@@ -3,6 +3,7 @@ from .cross_entropy import TensorParallelCrossEntropy
 from .dropout import Dropout_TP
 from .embedding import Embedding_TP
 from .linear import ColumnParallelLinear, RowParallelLinear
+from .lm_head import LMHead_TP
 from .position_embedding import Alibi_TP
 from .TP import (
     CopyToTensorParallelRegion,
