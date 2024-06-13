@@ -7,7 +7,15 @@ from ...utils import ProcessGroupManager
 from ..utils import divide_if_divisible
 
 
-class CopyToTensorParallelRegion(torch.autograd.Function):
+def copy_to_tensor_parallel_region(input: torch.Tensor) -> torch.Tensor:
+    return _CopyToTensorParallelRegion.apply(input)
+
+
+def reduce_from_tensor_parallel_region(input: torch.Tensor) -> torch.Tensor:
+    return _ReduceFromTensorParallelRegion.apply(input)
+
+
+class _CopyToTensorParallelRegion(torch.autograd.Function):
     """Pass the input to the model parallel region."""
 
     @staticmethod
@@ -19,7 +27,7 @@ class CopyToTensorParallelRegion(torch.autograd.Function):
         return _tensor_parallel_all_reduce(grad_output)
 
 
-class ReduceFromTensorParallelRegion(torch.autograd.Function):
+class _ReduceFromTensorParallelRegion(torch.autograd.Function):
     """All-reduce the input from the model parallel region."""
 
     @staticmethod
@@ -31,7 +39,7 @@ class ReduceFromTensorParallelRegion(torch.autograd.Function):
         return grad_output
 
 
-class GatherFromTensorParallelRegion(torch.autograd.Function):
+class _GatherFromTensorParallelRegion(torch.autograd.Function):
     """Gather the input from model parallel region and concatinate."""
 
     @staticmethod

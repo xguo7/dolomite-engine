@@ -5,7 +5,7 @@ import torch
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedEmbedding
 from ..utils import divide_if_divisible
-from .TP import ReduceFromTensorParallelRegion
+from .TP import reduce_from_tensor_parallel_region
 
 
 class Embedding_TP(ParameterizedEmbedding):
@@ -32,7 +32,7 @@ class Embedding_TP(ParameterizedEmbedding):
         if self.tp_world_size > 1:
             # Mask the output embedding.
             output_parallel[input_mask, :] = 0
-            output_parallel = ReduceFromTensorParallelRegion.apply(output_parallel)
+            output_parallel = reduce_from_tensor_parallel_region(output_parallel)
 
         return output_parallel
 
