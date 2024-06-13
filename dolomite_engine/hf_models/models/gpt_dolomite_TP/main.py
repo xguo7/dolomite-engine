@@ -10,10 +10,10 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 from ....utils import SafeTensorsWeightsManager
 from ...modeling_utils import ParameterizedLinear
 from ...modeling_utils_TP import (
-    CopyToTensorParallelRegion,
-    GatherFromTensorParallelRegion,
     LMHead_TP,
     TensorParallelCrossEntropy,
+    copy_to_tensor_parallel_region,
+    gather_from_tensor_parallel_region,
 )
 from ..gpt_dolomite import GPTDolomiteConfig, GPTDolomiteForCausalLM, GPTDolomitePreTrainedModel
 from .base import GPTDolomiteModel_TP, GPTDolomitePreTrainedModel_TP
@@ -84,7 +84,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCau
             assert self.tensor_parallel_embeddings
         else:
             if self.tensor_parallel_embeddings:
-                lm_logits = GatherFromTensorParallelRegion.apply(lm_logits)
+                lm_logits = gather_from_tensor_parallel_region(lm_logits)
 
         if not return_dict:
             output = (lm_logits,) + transformer_outputs[1:]
@@ -100,7 +100,7 @@ class GPTDolomiteForCausalLM_TP(GPTDolomitePreTrainedModel_TP, GPTDolomiteForCau
 
     def get_lm_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
         if self.tensor_parallel_embeddings:
-            hidden_states = CopyToTensorParallelRegion.apply(hidden_states)
+            hidden_states = copy_to_tensor_parallel_region(hidden_states)
 
         lm_logits = super().get_lm_logits(hidden_states)
 
