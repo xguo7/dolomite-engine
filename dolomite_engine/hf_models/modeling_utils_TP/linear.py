@@ -5,7 +5,11 @@ import torch.nn.functional as F
 from ...utils import ProcessGroupManager, SafeTensorsWeightsManager
 from ..modeling_utils import ParameterizedLinear
 from ..utils import divide_if_divisible
-from .TP import CopyToTensorParallelRegion, ReduceFromTensorParallelRegion, tensor_parallel_split_safetensor_slice
+from .TP import (
+    copy_to_tensor_parallel_region,
+    reduce_from_tensor_parallel_region,
+    tensor_parallel_split_safetensor_slice,
+)
 
 
 class ColumnParallelLinear(ParameterizedLinear):
@@ -36,7 +40,7 @@ class ColumnParallelLinear(ParameterizedLinear):
         )
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        input = CopyToTensorParallelRegion.apply(input)
+        input = copy_to_tensor_parallel_region(input)
         input = super().forward(input)
         return input
 
@@ -91,7 +95,7 @@ class RowParallelLinear(ParameterizedLinear):
         # we can't call super().forward here since that will add bias to each TP rank
         # but for tensor parallel, we need to add it on only 1 TP rank
         input = F.linear(input, self.weight, None)
-        input = ReduceFromTensorParallelRegion.apply(input)
+        input = reduce_from_tensor_parallel_region(input)
         if self.bias is not None:
             input = input + self.bias
         return input
