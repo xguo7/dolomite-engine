@@ -1,6 +1,8 @@
 import logging
 from warnings import warn
 
+import torch.distributed
+
 from .parallel import ProcessGroupManager, run_rank_n
 
 
@@ -34,6 +36,15 @@ def log_rank_0(level: int, msg: str) -> None:
     logger = get_logger()
     if logger is not None:
         logger.log(level=level, msg=msg, stacklevel=3)
+
+
+def log_ranks_all(level: int, msg: str) -> None:
+    logger = get_logger()
+    for rank in range(ProcessGroupManager.get_world_size()):
+        if ProcessGroupManager.get_global_rank() == rank:
+            logger.log(f"rank {rank}: {msg}")
+
+        torch.distributed.barrier()
 
 
 @run_rank_n
