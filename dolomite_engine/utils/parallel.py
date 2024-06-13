@@ -27,7 +27,7 @@ _DATA_PARALLEL_GROUP: ProcessGroup = None
 _DATA_PARALLEL_RANK: int = None
 _DATA_PARALLEL_WORLD_SIZE: int = None
 
-_ZERO_HPZ_PARTITION_SIZE: int = None
+_ZERO_TOPOLOGY: tuple[int] = None
 
 
 class ProcessGroupManager:
@@ -35,7 +35,7 @@ class ProcessGroupManager:
         self,
         tensor_parallel_size: int = None,
         data_parallel_size: int = None,
-        zero_hpz_partition_size: int = None,
+        zero_topology: tuple[int] = None,
         timeout_minutes: int = None,
         backend: str = "nccl",
     ) -> None:
@@ -59,7 +59,7 @@ class ProcessGroupManager:
 
         assert tensor_parallel_size * data_parallel_size == total_gpus
 
-        global _MESH, _ZERO_HPZ_PARTITION_SIZE
+        global _MESH, _ZERO_TOPOLOGY
 
         _MESH = init_device_mesh(
             "cuda",
@@ -67,7 +67,9 @@ class ProcessGroupManager:
             mesh_dim_names=("tp", "dp"),
         )
 
-        _ZERO_HPZ_PARTITION_SIZE = zero_hpz_partition_size
+        _ZERO_TOPOLOGY = zero_topology
+        if zero_topology is not None:
+            assert zero_topology[0] * zero_topology[1] == ProcessGroupManager.get_data_parallel_world_size()
 
         local_rank = int(os.getenv("LOCAL_RANK", 0))
         torch.cuda.set_device(local_rank)
@@ -185,10 +187,9 @@ class ProcessGroupManager:
 
     @staticmethod
     def get_data_parallel_mesh_for_hsdp() -> DeviceMesh:
-        global _ZERO_HPZ_PARTITION_SIZE
-
+        global _ZERO_TOPOLOGY
         mesh_array = ProcessGroupManager.get_data_parallel_mesh().mesh
-        mesh_array = mesh_array.view(_ZERO_HPZ_PARTITION_SIZE, -1)
+        mesh_array = mesh_array.view(_ZERO_TOPOLOGY)
         return DeviceMesh("cuda", mesh=mesh_array, mesh_dim_names=("ddp", "zero"))
 
     def __str__(self) -> str:

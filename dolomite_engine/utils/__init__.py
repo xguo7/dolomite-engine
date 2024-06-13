@@ -24,21 +24,21 @@ from .yaml import load_yaml
 
 
 def init_distributed(
-    tensor_parallel_size: int, data_parallel_size: int, zero_hpz_partition_size: int, timeout_minutes: int = None
+    tensor_parallel_size: int, data_parallel_size: int, zero_topology: int, timeout_minutes: int = None
 ) -> None:
     """intialize distributed
 
     Args:
         tensor_parallel_size (int): tensor parallel size
         data_parallel_size (int): data parallel size
-        zero_hpz_partition_size (int): HSDP size
+        zero_topology (tuple[int]): HSDP size
         timeout_minutes (int, optional): distributed timeout in minutes. Defaults to None.
     """
 
     process_group_manager = ProcessGroupManager(
         tensor_parallel_size=tensor_parallel_size,
         data_parallel_size=data_parallel_size,
-        zero_hpz_partition_size=zero_hpz_partition_size,
+        zero_topology=zero_topology,
         timeout_minutes=timeout_minutes,
     )
 

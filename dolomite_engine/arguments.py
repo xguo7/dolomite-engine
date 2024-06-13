@@ -286,8 +286,10 @@ class DistributedArgs(BaseArgs):
     gradient_checkpointing_method: Optional[GradientCheckpointingMethod] = None
     # gradient checkpointint args
     gradient_checkpointing_args: dict = {}
-    # hierarchical partioning for ZeRO (HSDP)
-    zero_hpz_partition_size: int = 1
+    # hierarchical partioning for ZeRO (HSDP), 8 will configure to use 8 GPUs (within node for FSDP
+    # and across nodes for DDP)
+    # 2D tuple indicating (replication GPUs, sharding GPUs)
+    zero_topology: Optional[tuple[int]] = None
     # whether to use quantized weights (ZeRO++)
     zero_quantized_weights: bool = False
     # whether to use quantized gradients (ZeRO++)
@@ -308,8 +310,6 @@ class DistributedArgs(BaseArgs):
     timeout_minutes: Optional[int] = None
 
     def model_post_init(self, __context: Any) -> None:
-        _check_not_None([(self.zero_hpz_partition_size, "zero_hpz_partition_size")])
-
         if self.zero_quantized_weights or self.zero_quantized_gradients:
             assert (
                 self.distributed_backend == DistributedBackend.deepspeed

@@ -262,7 +262,7 @@ def main() -> None:
     init_distributed(
         tensor_parallel_size=args.distributed_args.tensor_parallel_size,
         data_parallel_size=args.distributed_args.data_parallel_size,
-        zero_hpz_partition_size=args.distributed_args.zero_hpz_partition_size,
+        zero_topology=args.distributed_args.zero_topology,
         timeout_minutes=args.distributed_args.timeout_minutes,
     )
     set_seed(args.random_args.seed)

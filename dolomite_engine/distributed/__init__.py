@@ -57,7 +57,7 @@ def wrap_model_for_distributed_training(
     dtype = args.mixed_precision_args.dtype
     communication_dtype = args.distributed_args.communication_dtype
     fp8_backend = args.mixed_precision_args.fp8_backend
-    zero_hpz_partition_size = args.distributed_args.zero_hpz_partition_size
+    zero_topology = args.distributed_args.zero_topology
     efficient_initialization = args.model_args.efficient_initialization
 
     tp_world_size = ProcessGroupManager.get_tensor_parallel_world_size()
@@ -72,11 +72,6 @@ def wrap_model_for_distributed_training(
     if dtype == "fp8" and fp8_backend == FP8Backend.nvte:
         convert_model_to_transformer_engine(model)
         dtype = "bf16"
-
-    assert zero_hpz_partition_size in [
-        1,
-        torch.cuda.device_count(),
-    ], "currently we only support 1 and number of GPUs per node for HSDP"
 
     block_names = model.model._no_split_modules
 
@@ -126,18 +121,14 @@ def wrap_model_for_distributed_training(
         assert stage in [0, 2, 3]
         assert not cpu_offload
 
-        if tp_world_size > 1:
-            assert zero_hpz_partition_size == 1
-
         if stage == 0:
             sharding_strategy = ShardingStrategy.NO_SHARD
         else:
-            if zero_hpz_partition_size == 1:
-                sharding_strategy = _STAGE_FULL_SHARDING_STRATEGY_MAP[stage]
-            else:
-                assert zero_hpz_partition_size == 8
-
-                sharding_strategy = _STAGE_HYBRID_SHARDING_STRATEGY_MAP[stage]
+            sharding_strategy = (
+                _STAGE_FULL_SHARDING_STRATEGY_MAP[stage]
+                if zero_topology is None
+                else _STAGE_HYBRID_SHARDING_STRATEGY_MAP[stage]
+            )
 
         mixed_precision_policy = deepcopy(_FSDP_MIXED_PRECISION_POLICIES[dtype])
         if communication_dtype is not None:
