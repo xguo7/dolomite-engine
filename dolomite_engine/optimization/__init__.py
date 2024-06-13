@@ -65,6 +65,8 @@ def _get_param_groups(model: ModelWrapper, optimizer_class_args: dict, params_gr
             assert (
                 model.module.config.init_method == "mup"
             ), "both init method for model and params group method for optimizer should be set to mup"
+
+            m_width = model.module.config.m_width
         else:
             # FSDP
             assert isinstance(model.config, GPTDolomiteConfig), "mup is only supported with GPTDolomiteForCausalLM"
@@ -72,6 +74,8 @@ def _get_param_groups(model: ModelWrapper, optimizer_class_args: dict, params_gr
             assert (
                 model.config.init_method == "mup"
             ), "both init method for model and params group method for optimizer should be set to mup"
+
+            m_width = model.config.m_width
 
         # collect parameters with mup learning rate
         mup_group = {}
@@ -95,7 +99,7 @@ def _get_param_groups(model: ModelWrapper, optimizer_class_args: dict, params_gr
 
         trainable_parameters_or_param_groups = [
             {"params": normal_group},
-            {"params": list(mup_group.values()), "lr": optimizer_class_args["lr"] / model.config.m_width},
+            {"params": list(mup_group.values()), "lr": optimizer_class_args["lr"] / m_width},
         ]
     else:
         raise ValueError(f"unexpected params_group_method ({params_group_method})")
