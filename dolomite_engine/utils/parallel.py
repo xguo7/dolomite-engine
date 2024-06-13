@@ -63,8 +63,8 @@ class ProcessGroupManager:
 
         _MESH = init_device_mesh(
             "cuda",
-            (tensor_parallel_size, data_parallel_size),
-            mesh_dim_names=("tp", "dp"),
+            (data_parallel_size, tensor_parallel_size),
+            mesh_dim_names=("dp", "tp"),
         )
 
         _ZERO_TOPOLOGY = zero_topology
