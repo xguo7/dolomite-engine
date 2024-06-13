@@ -159,7 +159,7 @@ def wrap_model_for_distributed_training(
             # https://github.com/meta-llama/llama-recipes/blob/492455dc080f6c25f356e283e443be0cce86aaeb/src/llama_recipes/finetuning.py#L191
             sync_module_states=efficient_initialization,
             param_init_fn=_param_init if efficient_initialization else None,
-            device_mesh=ProcessGroupManager.get_data_parallel_mesh(),
+            device_mesh=ProcessGroupManager.get_data_parallel_mesh_with_topology(),
         )
 
         if args.distributed_args.gradient_checkpointing_method is not None:

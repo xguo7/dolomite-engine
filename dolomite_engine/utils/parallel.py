@@ -186,7 +186,7 @@ class ProcessGroupManager:
         return _DATA_PARALLEL_WORLD_SIZE
 
     @staticmethod
-    def get_data_parallel_mesh_for_hsdp() -> DeviceMesh:
+    def get_data_parallel_mesh_with_topology() -> DeviceMesh:
         global _ZERO_TOPOLOGY
         mesh_array = ProcessGroupManager.get_data_parallel_mesh().mesh
         mesh_array = mesh_array.view(_ZERO_TOPOLOGY)
