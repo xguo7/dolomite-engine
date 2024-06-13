@@ -127,8 +127,12 @@ def wrap_model_for_distributed_training(
             mixed_precision_policy.reduce_dtype = string_to_torch_dtype(communication_dtype)
 
         if stage == 0:
+            assert zero_topology is None
+
             model = model.to(torch.cuda.current_device())
-            model = DDP(model, mixed_precision=mixed_precision_policy)
+            model = DDP(
+                model, mixed_precision=mixed_precision_policy, device_mesh=ProcessGroupManager.get_data_parallel_mesh()
+            )
         else:
             sharding_strategy = (
                 _STAGE_FULL_SHARDING_STRATEGY_MAP[stage]
