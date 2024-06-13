@@ -188,9 +188,14 @@ class ProcessGroupManager:
     @staticmethod
     def get_data_parallel_mesh_with_topology() -> DeviceMesh:
         global _ZERO_TOPOLOGY
-        mesh_array = ProcessGroupManager.get_data_parallel_mesh().mesh
-        mesh_array = mesh_array.view(_ZERO_TOPOLOGY)
-        return DeviceMesh("cuda", mesh=mesh_array, mesh_dim_names=("ddp", "zero"))
+
+        dp_mesh = ProcessGroupManager.get_data_parallel_mesh()
+        if _ZERO_TOPOLOGY is not None:
+            mesh_array = dp_mesh.mesh
+            mesh_array = mesh_array.view(_ZERO_TOPOLOGY)
+            dp_mesh = DeviceMesh("cuda", mesh=mesh_array, mesh_dim_names=("ddp", "zero"))
+
+        return dp_mesh
 
     def __str__(self) -> str:
         return str(self.get_mesh())
