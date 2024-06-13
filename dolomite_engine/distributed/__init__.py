@@ -131,7 +131,10 @@ def wrap_model_for_distributed_training(
 
             model = model.to(torch.cuda.current_device())
             model = DDP(
-                model, mixed_precision=mixed_precision_policy, device_mesh=ProcessGroupManager.get_data_parallel_mesh()
+                model,
+                mixed_precision=mixed_precision_policy,
+                static_graph=True,
+                device_mesh=ProcessGroupManager.get_data_parallel_mesh(),
             )
         else:
             sharding_strategy = (
