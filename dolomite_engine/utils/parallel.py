@@ -27,7 +27,7 @@ _DATA_PARALLEL_GROUP: ProcessGroup = None
 _DATA_PARALLEL_RANK: int = None
 _DATA_PARALLEL_WORLD_SIZE: int = None
 
-_ZERO_TOPOLOGY: tuple[int] = None
+_ZERO_TOPOLOGY: tuple[int, int] = None
 
 
 class ProcessGroupManager:
@@ -35,7 +35,7 @@ class ProcessGroupManager:
         self,
         tensor_parallel_size: int = None,
         data_parallel_size: int = None,
-        zero_topology: tuple[int] = None,
+        zero_topology: tuple[int, int] = None,
         timeout_minutes: int = None,
         backend: str = "nccl",
     ) -> None:

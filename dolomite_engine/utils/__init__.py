@@ -24,14 +24,14 @@ from .yaml import load_yaml
 
 
 def init_distributed(
-    tensor_parallel_size: int, data_parallel_size: int, zero_topology: int, timeout_minutes: int = None
+    tensor_parallel_size: int, data_parallel_size: int, zero_topology: tuple[int, int], timeout_minutes: int = None
 ) -> None:
     """intialize distributed
 
     Args:
         tensor_parallel_size (int): tensor parallel size
         data_parallel_size (int): data parallel size
-        zero_topology (tuple[int]): HSDP size
+        zero_topology (tuple[int, int]): zero topology
         timeout_minutes (int, optional): distributed timeout in minutes. Defaults to None.
     """
 

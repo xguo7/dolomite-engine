@@ -289,7 +289,7 @@ class DistributedArgs(BaseArgs):
     # hierarchical partioning for ZeRO (HSDP), 8 will configure to use 8 GPUs (within node for FSDP
     # and across nodes for DDP)
     # 2D tuple indicating (replication GPUs, sharding GPUs)
-    zero_topology: Optional[tuple[int]] = None
+    zero_topology: Optional[tuple[int, int]] = None
     # whether to use quantized weights (ZeRO++)
     zero_quantized_weights: bool = False
     # whether to use quantized gradients (ZeRO++)
