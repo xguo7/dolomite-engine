@@ -4,7 +4,7 @@ import torch
 import torch.distributed
 
 from .hf_hub import download_repo
-from .logger import log_rank_0, log_ranks_all, print_rank_0, print_ranks_all, set_logger
+from .logger import log_rank_0, print_rank_0, print_ranks_all, set_logger
 from .mixed_precision import normalize_dtype_string, string_to_torch_dtype, torch_dtype_to_string
 from .packages import (
     is_apex_available,
@@ -45,9 +45,9 @@ def init_distributed(
     log_rank_0(logging.INFO, process_group_manager)
     log_rank_0(logging.INFO, f"total GPUs = {process_group_manager.get_world_size()}")
     log_rank_0(logging.INFO, f"tensor parallel size = {process_group_manager.get_tensor_parallel_world_size()}")
-    log_ranks_all(logging.INFO, f"tensor parallel mesh = {process_group_manager.get_tensor_parallel_mesh()}")
+    print_ranks_all(f"tensor parallel mesh = {process_group_manager.get_tensor_parallel_mesh()}")
     log_rank_0(logging.INFO, f"data parallel size = {process_group_manager.get_data_parallel_world_size()}")
-    log_ranks_all(logging.INFO, f"data parallel mesh = {process_group_manager.get_data_parallel_mesh()}")
+    print_ranks_all(f"data parallel mesh = {process_group_manager.get_data_parallel_mesh()}")
 
 
 def setup_tf32(use_tf32: bool = True) -> None:

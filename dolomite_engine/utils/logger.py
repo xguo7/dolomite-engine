@@ -38,15 +38,6 @@ def log_rank_0(level: int, msg: str) -> None:
         logger.log(level=level, msg=msg, stacklevel=3)
 
 
-def log_ranks_all(level: int, msg: str) -> None:
-    logger = get_logger()
-    for rank in range(ProcessGroupManager.get_world_size()):
-        if ProcessGroupManager.get_global_rank() == rank:
-            logger.log(level=level, msg=f"rank {rank}: {msg}", stacklevel=2)
-
-        torch.distributed.barrier()
-
-
 @run_rank_n
 def print_rank_0(*args, **kwargs) -> None:
     """print on a single process"""
