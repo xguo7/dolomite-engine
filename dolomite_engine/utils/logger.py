@@ -42,7 +42,7 @@ def log_ranks_all(level: int, msg: str) -> None:
     logger = get_logger()
     for rank in range(ProcessGroupManager.get_world_size()):
         if ProcessGroupManager.get_global_rank() == rank:
-            logger.log(f"rank {rank}: {msg}")
+            logger.log(level=level, msg=f"rank {rank}: {msg}", stacklevel=2)
 
         torch.distributed.barrier()
 
