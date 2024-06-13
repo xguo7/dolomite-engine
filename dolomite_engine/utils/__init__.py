@@ -45,7 +45,9 @@ def init_distributed(
     log_rank_0(logging.INFO, process_group_manager)
     log_rank_0(logging.INFO, f"total GPUs = {process_group_manager.get_world_size()}")
     log_rank_0(logging.INFO, f"tensor parallel size = {process_group_manager.get_tensor_parallel_world_size()}")
+    log_rank_0(logging.INFO, f"tensor parallel mesh = {process_group_manager.get_tensor_parallel_mesh()}")
     log_rank_0(logging.INFO, f"data parallel size = {process_group_manager.get_data_parallel_world_size()}")
+    log_rank_0(logging.INFO, f"data parallel mesh = {process_group_manager.get_data_parallel_mesh()}")
 
 
 def setup_tf32(use_tf32: bool = True) -> None:
