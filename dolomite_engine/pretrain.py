@@ -4,6 +4,7 @@ import time
 from typing import List
 
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
@@ -105,7 +106,13 @@ def train(
 
     micro_batch_size = args.training_parameters.micro_batch_size
     sequence_length = args.datasets[0].class_args.get("sequence_length")
-    model_flops = model.get_model_tflops(micro_batch_size * gradient_accumulation_steps, sequence_length)
+
+    if isinstance(model, DDP):
+        model_flops = model.module.get_model_tflops(micro_batch_size * gradient_accumulation_steps, sequence_length)
+    else:
+        # FSDP
+        model_flops = model.get_model_tflops(micro_batch_size * gradient_accumulation_steps, sequence_length)
+
     tokens_per_batch = (
         micro_batch_size
         * gradient_accumulation_steps
