@@ -322,8 +322,8 @@ class DistributedArgs(BaseArgs):
         if self.stage == 0:
             assert self.zero_topology is None, "zero_topology is meaningless with stage 0"
 
-        if self.zero_topology is not None:
-            assert self.tensor_parallel_size == 1, "tensor parallel is not supported with HSDP"
+        if self.tensor_parallel_size is not None and self.tensor_parallel_size > 1:
+            assert self.zero_topology is None, "tensor parallel is not supported with HSDP"
 
 
 class AimArgs(BaseArgs):
