@@ -63,30 +63,21 @@ def save_checkpoint(
     elif distributed_backend == DistributedBackend.torch:
         dp_rank = ProcessGroupManager.get_data_parallel_rank()
 
-        if args.distributed_args.stage == 0:
+        # TODO add support for local state dict
+        with FSDP.state_dict_type(
+            model,
+            state_dict_type=StateDictType.FULL_STATE_DICT,
+            state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True),
+            optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=True),
+        ):
+            model_state_dict = model.state_dict()
             if dp_rank == 0:
-                torch.save(model.state_dict(), _get_model_path(save_path))
+                torch.save(model_state_dict, _get_model_path(save_path))
 
-                if save_optimizer:
-                    torch.save(optimizer.state_dict(), _get_optimizer_path(save_path))
-        else:
-            assert isinstance(model, FSDP)
-
-            # TODO add support for local state dict
-            with FSDP.state_dict_type(
-                model,
-                state_dict_type=StateDictType.FULL_STATE_DICT,
-                state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True),
-                optim_state_dict_config=FullOptimStateDictConfig(offload_to_cpu=True, rank0_only=True),
-            ):
-                model_state_dict = model.state_dict()
+            if save_optimizer:
+                optimizer_state_dict = FSDP.optim_state_dict(model=model, optim=optimizer)
                 if dp_rank == 0:
-                    torch.save(model_state_dict, _get_model_path(save_path))
-
-                if save_optimizer:
-                    optimizer_state_dict = FSDP.optim_state_dict(model=model, optim=optimizer)
-                    if dp_rank == 0:
-                        torch.save(optimizer_state_dict, _get_optimizer_path(save_path))
+                    torch.save(optimizer_state_dict, _get_optimizer_path(save_path))
 
         run_rank_n(torch.save)(lr_scheduler.state_dict(), _get_lr_scheduler_path(save_path))
     else:

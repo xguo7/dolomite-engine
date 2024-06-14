@@ -1,6 +1,5 @@
 from typing import Tuple
 
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 
@@ -54,28 +53,11 @@ def _get_param_groups(model: ModelWrapper, optimizer_class_args: dict, params_gr
     if params_group_method is None:
         trainable_parameters_or_param_groups = model.parameters()
     elif params_group_method == ParamsGroupMethod.mup:
-        # TODO move it back once https://github.com/pytorch/pytorch/pull/128620 is merged
-        if isinstance(model, DDP):
-            assert isinstance(
-                model.module.config, GPTDolomiteConfig
-            ), "mup is only supported with GPTDolomiteForCausalLM"
-            assert isinstance(
-                model.module.model, GPTDolomiteForCausalLM
-            ), "mup is only supported with GPTDolomiteForCausalLM"
-            assert (
-                model.module.config.init_method == "mup"
-            ), "both init method for model and params group method for optimizer should be set to mup"
-
-            m_width = model.module.config.m_width
-        else:
-            # FSDP
-            assert isinstance(model.config, GPTDolomiteConfig), "mup is only supported with GPTDolomiteForCausalLM"
-            assert isinstance(model.model, GPTDolomiteForCausalLM), "mup is only supported with GPTDolomiteForCausalLM"
-            assert (
-                model.config.init_method == "mup"
-            ), "both init method for model and params group method for optimizer should be set to mup"
-
-            m_width = model.config.m_width
+        assert isinstance(model.config, GPTDolomiteConfig), "mup is only supported with GPTDolomiteForCausalLM"
+        assert isinstance(model.model, GPTDolomiteForCausalLM), "mup is only supported with GPTDolomiteForCausalLM"
+        assert (
+            model.config.init_method == "mup"
+        ), "both init method for model and params group method for optimizer should be set to mup"
 
         # collect parameters with mup learning rate
         mup_group = {}
@@ -99,7 +81,7 @@ def _get_param_groups(model: ModelWrapper, optimizer_class_args: dict, params_gr
 
         trainable_parameters_or_param_groups = [
             {"params": normal_group},
-            {"params": list(mup_group.values()), "lr": optimizer_class_args["lr"] / m_width},
+            {"params": list(mup_group.values()), "lr": optimizer_class_args["lr"] / model.config.m_width},
         ]
     else:
         raise ValueError(f"unexpected params_group_method ({params_group_method})")
