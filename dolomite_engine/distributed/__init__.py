@@ -121,6 +121,11 @@ def wrap_model_for_distributed_training(
         assert stage in [0, 2, 3]
         assert not cpu_offload
 
+        if zero_topology is not None:
+            assert (
+                ProcessGroupManager.get_tensor_parallel_world_size() == 1
+            ), "tensor parallel is not supported with HSDP"
+
         if stage == 0:
             assert zero_topology is None
             assert not efficient_initialization
