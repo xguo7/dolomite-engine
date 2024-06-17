@@ -6,8 +6,8 @@ from .pydantic import BaseArgs
 from .ranks import run_rank_n
 
 
-if is_aim_available():
-    from aim import Run as AimRun
+#if is_aim_available():
+#    from aim import Run as AimRun
 
 if is_wandb_available():
     import wandb
